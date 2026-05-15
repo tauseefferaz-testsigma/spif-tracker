@@ -1,17 +1,11 @@
-const BASE_URL = import.meta.env.VITE_APPS_SCRIPT_URL || '';
-
-// Request timeout in ms
+const BASE_URL   = import.meta.env.VITE_APPS_SCRIPT_URL || '';
 const TIMEOUT_MS = 15_000;
-
-// In-flight request tracker to prevent duplicate submissions
-const inFlight = new Set();
-
-// ─── INTERNAL ─────────────────────────────────────────────────────────────────
+const inFlight   = new Set();
 
 function log(level, message, data = {}) {
-  const prefix = `[SPIF API ${new Date().toISOString()}]`;
+  const prefix = `[SPIF ${new Date().toISOString()}]`;
   if (level === 'error') console.error(prefix, message, data);
-  else if (level === 'warn')  console.warn(prefix, message, data);
+  else if (level === 'warn') console.warn(prefix, message, data);
   else console.log(prefix, message, data);
 }
 
@@ -24,12 +18,8 @@ function withTimeout(promise, ms = TIMEOUT_MS) {
   ]);
 }
 
-// Apps Script only supports GET and POST in no-cors mode.
-// All write operations (create, update, delete) go through POST with an _action field.
-
 async function get(retries = 2) {
   if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL is not configured.');
-
   let lastError = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -51,14 +41,12 @@ async function get(retries = 2) {
 
 async function post(payload, retries = 2) {
   if (!BASE_URL) throw new Error('VITE_APPS_SCRIPT_URL is not configured.');
-
   const dedupKey = JSON.stringify(payload);
   if (inFlight.has(dedupKey)) {
     log('warn', 'Duplicate request blocked', { action: payload._action });
-    throw new Error('This request is already in progress. Please wait.');
+    throw new Error('This request is already in progress.');
   }
   inFlight.add(dedupKey);
-
   let lastError = null;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -66,14 +54,13 @@ async function post(payload, retries = 2) {
         await new Promise(r => setTimeout(r, attempt * 1000));
         log('warn', `POST retry ${attempt}/${retries}`, { action: payload._action });
       }
-      // no-cors POST is the only reliable cross-origin write method for Apps Script
       await withTimeout(fetch(BASE_URL, {
         method:  'POST',
         mode:    'no-cors',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body:    JSON.stringify(payload),
       }));
-      log('log', `POST success`, { action: payload._action });
+      log('log', 'POST success', { action: payload._action });
       inFlight.delete(dedupKey);
       return { success: true };
     } catch (err) {
@@ -85,31 +72,23 @@ async function post(payload, retries = 2) {
   throw lastError || new Error('Request failed after retries.');
 }
 
-// ─── PUBLIC API ───────────────────────────────────────────────────────────────
-
 export async function fetchSubmissions() {
   const data = await get();
-  if (!Array.isArray(data.submissions)) {
-    log('warn', 'Unexpected response shape', data);
-    return [];
-  }
+  if (!Array.isArray(data.submissions)) return [];
   return data.submissions;
 }
 
 export async function createSubmission(payload) {
-  log('log', 'Creating submission', { csm: payload.csm, activity: payload.activity });
   return post({ ...payload, _action: 'create' });
 }
 
 export async function updateSubmission(payload) {
   if (!payload.rowIndex) throw new Error('rowIndex is required for updates.');
-  log('log', 'Updating submission', { rowIndex: payload.rowIndex });
   return post({ ...payload, _action: 'update' });
 }
 
 export async function deleteSubmission(rowIndex) {
   if (!rowIndex) throw new Error('rowIndex is required for deletion.');
-  log('log', 'Deleting submission', { rowIndex });
   return post({ rowIndex, _action: 'delete' });
 }
 

@@ -1,4 +1,4 @@
-import { CSMS, PAYOUT_THRESHOLD, CERT_THRESHOLD, ACTIVITIES } from '../types/index.js';
+import { CSMS, REVIEW_TARGET, ACTIVITIES } from '../types/index.js';
 
 export function buildLeaderboard(submissions) {
   const map = {};
@@ -7,14 +7,18 @@ export function buildLeaderboard(submissions) {
   });
 
   for (const row of submissions) {
-    if (row._pending) continue; // exclude in-flight rows from stats
+    if (row._pending) continue;
     const csm = row.csm;
     if (!csm) continue;
     if (!map[csm]) map[csm] = { csm, pts: 0, reviews: 0, activities: 0 };
     map[csm].pts        += Number(row.points) || 0;
     map[csm].activities += 1;
-    if (String(row.activity).startsWith('G2 Review')) {
-      map[csm].reviews += Number(row.reviews) || 0;
+    // Count reviews = G2 Review + Gartner (both showCount activities)
+    if (row.reviews && Number(row.reviews) > 0) {
+      const act = ACTIVITIES.find(a => a.label === row.activity);
+      if (act?.showCount) {
+        map[csm].reviews += Number(row.reviews) || 0;
+      }
     }
   }
 
@@ -33,14 +37,20 @@ export function buildActivityBreakdown(submissions) {
 }
 
 export function buildSummaryStats(submissions) {
-  const real = submissions.filter(r => !r._pending);
+  const real        = submissions.filter(r => !r._pending);
   const totalPts    = real.reduce((s, r) => s + (Number(r.points) || 0), 0);
-  const g2Reviews   = real
-    .filter(r => String(r.activity).startsWith('G2 Review'))
+  const totalActs   = real.length;
+  // Reviews = sum of review counts for showCount activities
+  const totalReviews = real
+    .filter(r => {
+      const act = ACTIVITIES.find(a => a.label === r.activity);
+      return act?.showCount;
+    })
     .reduce((s, r) => s + (Number(r.reviews) || 0), 0);
-  const caseStudies = real.filter(r => r.activity === 'Case Study').length;
-  const lb          = buildLeaderboard(real);
-  const atPayout    = lb.filter(c => c.pts >= PAYOUT_THRESHOLD).length;
+  const primaryActs = real.filter(r => {
+    const act = ACTIVITIES.find(a => a.label === r.activity);
+    return act?.category === 'Primary';
+  }).length;
 
-  return { totalPts, g2Reviews, caseStudies, atPayout };
+  return { totalPts, totalReviews, totalActs, primaryActs };
 }

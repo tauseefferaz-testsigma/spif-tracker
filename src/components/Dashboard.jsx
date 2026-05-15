@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
-import { CSMS, CERT_THRESHOLD, PAYOUT_THRESHOLD, formatDate, getPayoutStatus } from '../types/index.js';
+import { CSMS, REVIEW_TARGET, ACTIVITIES } from '../types/index.js';
 import { buildSummaryStats, buildLeaderboard, buildActivityBreakdown } from '../lib/stats.js';
 import { exportReport } from '../lib/pdf.js';
 import { StatCard, Card, Badge, ProgressBar, Button, SectionTitle, colors } from './ui.jsx';
 
 export default function Dashboard({ submissions }) {
-  const stats     = useMemo(() => buildSummaryStats(submissions), [submissions]);
-  const lb        = useMemo(() => buildLeaderboard(submissions),  [submissions]);
-  const actBreak  = useMemo(() => buildActivityBreakdown(submissions), [submissions]);
+  const stats    = useMemo(() => buildSummaryStats(submissions), [submissions]);
+  const lb       = useMemo(() => buildLeaderboard(submissions),  [submissions]);
+  const actBreak = useMemo(() => buildActivityBreakdown(submissions), [submissions]);
 
   return (
     <div>
@@ -18,37 +18,34 @@ export default function Dashboard({ submissions }) {
         </Button>
       </div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards — no payout callouts */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 14, marginBottom: 28 }}>
-        <StatCard label="Total Points"    value={stats.totalPts}    accent={colors.accent} />
-        <StatCard label="G2 Reviews"      value={stats.g2Reviews}   accent={colors.green} />
-        <StatCard label="Case Studies"    value={stats.caseStudies} accent={colors.amber} />
-        <StatCard label="At Payout (50+)" value={stats.atPayout}    accent={colors.purple} sub={`of ${CSMS.length} CSMs`} />
+        <StatCard label="Total Points"      value={stats.totalPts}     accent={colors.accent} />
+        <StatCard label="Total Reviews"     value={stats.totalReviews} accent={colors.green}
+          sub={`team target: ${REVIEW_TARGET}`} />
+        <StatCard label="Total Activities"  value={stats.totalActs}    accent={colors.amber} />
+        <StatCard label="Primary Activities" value={stats.primaryActs} accent={colors.purple} />
       </div>
 
-      {/* Progress bars */}
+      {/* Leaderboard with review progress bars */}
       <Card style={{ marginBottom: 20 }}>
-        <SectionTitle>Progress to payout</SectionTitle>
-        {lb.map(c => {
-          const status = getPayoutStatus(c.pts);
-          const barColor = c.pts >= CERT_THRESHOLD ? colors.purple
-            : c.pts >= PAYOUT_THRESHOLD ? colors.green
-            : colors.accent;
-          return (
-            <div key={c.csm} style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                <span style={{ fontSize: 13, fontWeight: 500 }}>{c.csm}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Badge color={status.color}>{status.label}</Badge>
-                  <span style={{ fontSize: 14, fontWeight: 700, minWidth: 54, textAlign: 'right' }}>
-                    {c.pts} pts
-                  </span>
-                </div>
+        <SectionTitle>Review progress — individual (target: {REVIEW_TARGET})</SectionTitle>
+        {lb.map(c => (
+          <div key={c.csm} style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{c.csm}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: colors.muted }}>
+                  {c.reviews} / {REVIEW_TARGET} reviews
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: colors.accent, minWidth: 54, textAlign: 'right' }}>
+                  {c.pts} pts
+                </span>
               </div>
-              <ProgressBar value={c.pts} max={CERT_THRESHOLD} color={barColor} />
             </div>
-          );
-        })}
+            <ProgressBar value={c.reviews} max={REVIEW_TARGET} color={colors.green} />
+          </div>
+        ))}
       </Card>
 
       {/* Activity Breakdown */}
@@ -58,7 +55,8 @@ export default function Dashboard({ submissions }) {
           <thead>
             <tr style={{ background: '#f7f6f2' }}>
               <th style={{ textAlign: 'left',   padding: '9px 12px', fontWeight: 600, color: colors.mid }}>Activity</th>
-              <th style={{ textAlign: 'center', padding: '9px 12px', fontWeight: 600, color: colors.mid }}>Reviews / Count</th>
+              <th style={{ textAlign: 'center', padding: '9px 12px', fontWeight: 600, color: colors.mid }}>Category</th>
+              <th style={{ textAlign: 'center', padding: '9px 12px', fontWeight: 600, color: colors.mid }}>Count</th>
               <th style={{ textAlign: 'center', padding: '9px 12px', fontWeight: 600, color: colors.mid }}>Points</th>
             </tr>
           </thead>
@@ -66,12 +64,15 @@ export default function Dashboard({ submissions }) {
             {actBreak.map(a => (
               <tr key={a.id} style={{ borderTop: `1px solid ${colors.border}` }}>
                 <td style={{ padding: '10px 12px' }}>{a.label}</td>
+                <td style={{ textAlign: 'center', padding: '10px 12px' }}>
+                  <Badge color={a.category === 'Primary' ? 'green' : 'purple'}>{a.category}</Badge>
+                </td>
                 <td style={{ textAlign: 'center', padding: '10px 12px' }}>{a.count}</td>
                 <td style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 600, color: colors.accent }}>{a.pts}</td>
               </tr>
             ))}
             <tr style={{ borderTop: `2px solid ${colors.dark}`, background: '#f7f6f2' }}>
-              <td style={{ padding: '10px 12px', fontWeight: 700 }}>TOTAL</td>
+              <td style={{ padding: '10px 12px', fontWeight: 700 }} colSpan={2}>TOTAL</td>
               <td style={{ textAlign: 'center', padding: '10px 12px', fontWeight: 700 }}>
                 {actBreak.reduce((s, a) => s + a.count, 0)}
               </td>

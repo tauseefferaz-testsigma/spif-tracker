@@ -11,22 +11,96 @@ export const CSMS = [
   'Subhopriyo Sen',
   'Tauseef Feraz',
   'Varun Thakur',
-  'Vig',
 ];
 
-export const TIERS = ['SMB', 'Enterprise'];
-
+// Activities with full metadata
+// perReview: points multiply by count entered
+// showCount: show "No. of Reviews" number input
+// showContext: show the smart context field (URL, name, etc.)
+// showCustomer: show Customer Name + Email fields
+// contextLabel/contextPlaceholder: label and hint for the context field
 export const ACTIVITIES = [
-  // perReview: points multiply by count entered
-  // showCount: always show the "No. of Reviews" field (even for flat activities)
-  { id: 'g2_smb',        label: 'G2 Review — SMB',        points: 10, perReview: true,  showCount: true,  countLabel: 'No. of Reviews' },
-  { id: 'g2_enterprise', label: 'G2 Review — Enterprise', points: 20, perReview: true,  showCount: true,  countLabel: 'No. of Reviews' },
-  { id: 'case_study',    label: 'Case Study',              points: 20, perReview: false, showCount: false, countLabel: null },
-  { id: 'gpi',           label: 'GPI',                     points: 15, perReview: false, showCount: false, countLabel: null },
+  {
+    id:                 'g2_review',
+    label:              'G2 Review',
+    points:             2,
+    perReview:          true,
+    showCount:          true,
+    countLabel:         'No. of Reviews',
+    showCustomer:       true,
+    showContext:        false,
+    contextLabel:       null,
+    contextPlaceholder: null,
+    category:           'Primary',
+  },
+  {
+    id:                 'gartner',
+    label:              'Gartner Peer Insights Review',
+    points:             3,
+    perReview:          true,
+    showCount:          true,
+    countLabel:         'No. of Reviews',
+    showCustomer:       true,
+    showContext:        false,
+    contextLabel:       null,
+    contextPlaceholder: null,
+    category:           'Primary',
+  },
+  {
+    id:                 'reference_customer',
+    label:              'Reference Customer',
+    points:             3,
+    perReview:          false,
+    showCount:          false,
+    countLabel:         null,
+    showCustomer:       true,
+    showContext:        false,
+    contextLabel:       null,
+    contextPlaceholder: null,
+    category:           'Primary',
+  },
+  {
+    id:                 'success_story',
+    label:              'Success Story',
+    points:             5,
+    perReview:          false,
+    showCount:          false,
+    countLabel:         null,
+    showCustomer:       true,
+    showContext:        true,
+    contextLabel:       'Story URL or Title',
+    contextPlaceholder: 'e.g. acme.com/story or "Acme doubles revenue with..."',
+    category:           'Primary',
+  },
+  {
+    id:                 'webinar_speaker',
+    label:              'Webinar Speaker',
+    points:             3,
+    perReview:          false,
+    showCount:          false,
+    countLabel:         null,
+    showCustomer:       false,
+    showContext:        true,
+    contextLabel:       'Webinar Name',
+    contextPlaceholder: 'e.g. SaaStr 2026',
+    category:           'Recognition',
+  },
+  {
+    id:                 'social_post',
+    label:              'Customer Social Post',
+    points:             2,
+    perReview:          false,
+    showCount:          false,
+    countLabel:         null,
+    showCustomer:       true,
+    showContext:        true,
+    contextLabel:       'Post URL',
+    contextPlaceholder: 'e.g. linkedin.com/posts/xyz',
+    category:           'Recognition',
+  },
 ];
 
-export const PAYOUT_THRESHOLD = 50;
-export const CERT_THRESHOLD   = 200;
+export const REVIEW_TARGET = 50; // team target — used for progress bars
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -53,32 +127,48 @@ export function todayISO() {
   return new Date().toISOString().split('T')[0];
 }
 
+export function isReviewActivity(activityLabel) {
+  const a = getActivity(activityLabel);
+  return a ? a.showCount : false;
+}
+
 // ─── VALIDATION ───────────────────────────────────────────────────────────────
 
 export function validateSubmission(data) {
-  const errors = {};
+  const errors  = {};
+  const activity = getActivity(data.activity);
 
   if (!data.csm || !CSMS.includes(data.csm)) {
     errors.csm = 'Select a valid CSM name.';
   }
 
-  if (!data.tier || !TIERS.includes(data.tier)) {
-    errors.tier = 'Select a valid tier.';
-  }
-
-  const activity = getActivity(data.activity);
   if (!activity) {
     errors.activity = 'Select a valid activity.';
   }
 
-  if (activity?.perReview) {
+  if (activity?.showCount) {
     const n = parseInt(data.reviews, 10);
     if (!Number.isFinite(n) || n < 1 || n > 100) {
       errors.reviews = 'Enter a number between 1 and 100.';
     }
   }
 
-  if (data.notes && data.notes.length > 500) {
+  if (activity?.showCustomer) {
+    if (!data.customerName || String(data.customerName).trim().length < 2) {
+      errors.customerName = 'Enter the customer name.';
+    }
+    if (!data.customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.customerEmail)) {
+      errors.customerEmail = 'Enter a valid email address.';
+    }
+  }
+
+  if (activity?.showContext) {
+    if (!data.context || String(data.context).trim().length < 2) {
+      errors.context = `Enter the ${activity.contextLabel?.toLowerCase() || 'required field'}.`;
+    }
+  }
+
+  if (data.notes && String(data.notes).length > 500) {
     errors.notes = 'Notes must be under 500 characters.';
   }
 
@@ -90,21 +180,15 @@ export function validateSubmission(data) {
 export function sanitizeSubmission(raw) {
   const activity = getActivity(raw.activity);
   return {
-    date:     raw.date || todayISO(),
-    csm:      String(raw.csm || '').trim(),
-    tier:     String(raw.tier || '').trim(),
-    activity: String(raw.activity || '').trim(),
-    reviews:  activity?.perReview ? Math.max(1, parseInt(raw.reviews, 10) || 1) : '',
-    notes:    String(raw.notes || '').trim().slice(0, 500),
-    points:   calcPoints(raw.activity, raw.reviews),
+    date:          raw.date || todayISO(),
+    csm:           String(raw.csm || '').trim(),
+    activity:      String(raw.activity || '').trim(),
+    category:      activity?.category || '',
+    reviews:       activity?.perReview ? Math.max(1, parseInt(raw.reviews, 10) || 1) : '',
+    customerName:  activity?.showCustomer ? String(raw.customerName || '').trim() : '',
+    customerEmail: activity?.showCustomer ? String(raw.customerEmail || '').trim().toLowerCase() : '',
+    context:       activity?.showContext  ? String(raw.context || '').trim() : '',
+    notes:         String(raw.notes || '').trim().slice(0, 500),
+    points:        calcPoints(raw.activity, raw.reviews),
   };
-}
-
-// ─── STATUS LOGIC ─────────────────────────────────────────────────────────────
-
-export function getPayoutStatus(points) {
-  if (points >= CERT_THRESHOLD)   return { label: 'Certified', color: 'purple' };
-  if (points >= PAYOUT_THRESHOLD) return { label: 'Payout unlocked', color: 'green' };
-  if (points > 0)                 return { label: `${PAYOUT_THRESHOLD - points} pts to payout`, color: 'amber' };
-  return { label: 'No activity', color: 'gray' };
 }
