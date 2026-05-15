@@ -17,10 +17,12 @@ export const CSMS = [
 export const TIERS = ['SMB', 'Enterprise'];
 
 export const ACTIVITIES = [
-  { id: 'g2_smb',        label: 'G2 Review — SMB',        points: 10, perReview: true  },
-  { id: 'g2_enterprise', label: 'G2 Review — Enterprise', points: 20, perReview: true  },
-  { id: 'case_study',    label: 'Case Study',              points: 20, perReview: false },
-  { id: 'gpi',           label: 'GPI',                     points: 15, perReview: false },
+  // perReview: points multiply by count entered
+  // showCount: always show the "No. of Reviews" field (even for flat activities)
+  { id: 'g2_smb',        label: 'G2 Review — SMB',        points: 10, perReview: true,  showCount: true,  countLabel: 'No. of Reviews' },
+  { id: 'g2_enterprise', label: 'G2 Review — Enterprise', points: 20, perReview: true,  showCount: true,  countLabel: 'No. of Reviews' },
+  { id: 'case_study',    label: 'Case Study',              points: 20, perReview: false, showCount: false, countLabel: null },
+  { id: 'gpi',           label: 'GPI',                     points: 15, perReview: false, showCount: false, countLabel: null },
 ];
 
 export const PAYOUT_THRESHOLD = 50;
@@ -101,8 +103,8 @@ export function sanitizeSubmission(raw) {
 // ─── STATUS LOGIC ─────────────────────────────────────────────────────────────
 
 export function getPayoutStatus(points) {
-  if (points >= CERT_THRESHOLD)   return { label: 'Certified 🏆', color: 'purple' };
-  if (points >= PAYOUT_THRESHOLD) return { label: 'Payout unlocked ✅', color: 'green' };
+  if (points >= CERT_THRESHOLD)   return { label: 'Certified', color: 'purple' };
+  if (points >= PAYOUT_THRESHOLD) return { label: 'Payout unlocked', color: 'green' };
   if (points > 0)                 return { label: `${PAYOUT_THRESHOLD - points} pts to payout`, color: 'amber' };
   return { label: 'No activity', color: 'gray' };
 }
