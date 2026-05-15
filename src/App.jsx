@@ -181,16 +181,83 @@ export default function App() {
     }
   }
 
-  async function handleDeleteRow(index) {
-    if (!window.confirm('Delete this entry? This action cannot be undone.')) return;
-    const row = submissions[index];
+  async function handleEditSave() {
+    if (!form.csm || !form.activity) {
+      setError('Please pick CSM and activity.');
+      return;
+    }
+    const activity = ACTIVITIES.find(a => a.label === form.activity);
+    if (activity.perReview && (!form.reviews || Number(form.reviews) < 1)) {
+      setError('Enter number of reviews for G2 Review submissions.');
+      return;
+    }
+
     setSubmitting(true);
+    setError('');
+    
+    const rowToEdit = submissions[editingRowIndex];
+    const payload = {
+      action: 'update',
+      rowIndex: rowToEdit.rowIndex,
+      date: rowToEdit.date,
+      csm: form.csm,
+      tier: form.tier,
+      activity: form.activity,
+      reviews: activity.perReview ? Number(form.reviews) : '',
+      notes: form.notes,
+      points: calcPts(form.activity, form.reviews),
+    };
+
     try {
-      // Since Apps Script can't delete, we have to tell the user to delete from the sheet
-      setError(`Please delete this row manually from your Google Sheet: ${fmtDate(row.date)} - ${row.csm} - ${row.activity}`);
-      setSubmitting(false);
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'PUT',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      });
+
+      setSuccess(`✅ Row updated! Changes saved to Google Sheet.`);
+      setEditingRowIndex(null);
+      setForm({ csm: '', tier: 'SMB', activity: '', reviews: '', notes: '' });
+      setTimeout(() => setSuccess(''), 3500);
+      setTimeout(fetchSubmissions, 1500);
     } catch (e) {
-      setError('Could not delete. Please delete from Google Sheet directly.');
+      setError('Update failed. Try again.');
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeleteRow(index) {
+    const row = submissions[index];
+    if (!window.confirm(`Delete this entry?\n\n${fmtDate(row.date)} - ${row.csm} - ${row.activity}\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    const payload = {
+      action: 'delete',
+      rowIndex: row.rowIndex,
+    };
+
+    try {
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'DELETE',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+      });
+
+      setSuccess(`🗑️ Entry deleted from Google Sheet.`);
+      setTimeout(() => setSuccess(''), 3500);
+      setTimeout(fetchSubmissions, 1500);
+    } catch (e) {
+      setError('Delete failed. Try again.');
+      console.error(e);
+    } finally {
       setSubmitting(false);
     }
   }
@@ -384,7 +451,13 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── SUBMIT FORM ─── */}
+        {success && (
+          <div style={{ background: '#e6f4ea', color: '#1a6b2f', padding: '12px 16px',
+            borderRadius: 10, marginBottom: 16, fontSize: 13, fontWeight: 500 }}>
+            {success}
+          </div>
+        )}
+
         {view === 'submit' && (
           <div style={{ maxWidth: 560 }}>
             <div style={S.card}>
@@ -393,16 +466,9 @@ export default function App() {
               </div>
               <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
                 {editingRowIndex !== null 
-                  ? '⚠️ Edits update the form only. Go to Google Sheet to save changes.'
+                  ? 'Update the details and click Done editing to save to Google Sheet.'
                   : 'Points calculate automatically.'}
               </div>
-
-              {success && (
-                <div style={{ background: '#e6f4ea', color: '#1a6b2f', padding: '12px 16px',
-                  borderRadius: 10, marginBottom: 18, fontSize: 13, fontWeight: 500 }}>
-                  ✅ {success}
-                </div>
-              )}
 
               <div style={{ marginBottom: 18 }}>
                 <label style={S.label}>CSM name</label>
@@ -455,9 +521,10 @@ export default function App() {
               )}
 
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={handleSubmit} disabled={submitting}
+                <button onClick={editingRowIndex !== null ? handleEditSave : handleSubmit}
+                  disabled={submitting}
                   style={{ ...S.btn, flex: 1, opacity: submitting ? 0.5 : 1 }}>
-                  {submitting ? 'Submitting…' : editingRowIndex !== null ? 'Done editing' : 'Submit'}
+                  {submitting ? 'Saving…' : editingRowIndex !== null ? '✅ Done editing' : 'Submit'}
                 </button>
                 {editingRowIndex !== null && (
                   <button onClick={() => {
@@ -468,18 +535,10 @@ export default function App() {
                   </button>
                 )}
               </div>
-
-              {editingRowIndex !== null && (
-                <div style={{ marginTop: 12, padding: '10px 12px', background: '#fef3c7',
-                  borderRadius: 8, fontSize: 12, color: '#854f0b' }}>
-                  <strong>Note:</strong> To save changes, delete this row from your Google Sheet and create a new one, or edit directly in the sheet.
-                </div>
-              )}
             </div>
           </div>
         )}
 
-        {/* ─── DASHBOARD ─── */}
         {view === 'dashboard' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -562,7 +621,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── LEADERBOARD ─── */}
         {view === 'leaderboard' && (
           <div>
             <div style={{ display: 'grid',
@@ -615,7 +673,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ─── LOG ─── */}
         {view === 'log' && (
           <div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -678,3 +735,5 @@ export default function App() {
     </div>
   );
 }
+
+export default App;
