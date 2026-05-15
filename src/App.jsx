@@ -63,6 +63,8 @@ const S = {
     transition: 'opacity 0.15s' },
   btnSecondary: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd',
     borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnDanger: { background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca',
+    borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
 };
 
 function StatCard({ label, value, accent, sub }) {
@@ -109,6 +111,7 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingRowIndex, setEditingRowIndex] = useState(null);
   const [form, setForm] = useState({
     csm: '', tier: 'SMB', activity: '', reviews: '', notes: '',
   });
@@ -176,6 +179,33 @@ export default function App() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleDeleteRow(index) {
+    if (!window.confirm('Delete this entry? This action cannot be undone.')) return;
+    const row = submissions[index];
+    setSubmitting(true);
+    try {
+      // Since Apps Script can't delete, we have to tell the user to delete from the sheet
+      setError(`Please delete this row manually from your Google Sheet: ${fmtDate(row.date)} - ${row.csm} - ${row.activity}`);
+      setSubmitting(false);
+    } catch (e) {
+      setError('Could not delete. Please delete from Google Sheet directly.');
+      setSubmitting(false);
+    }
+  }
+
+  function startEditRow(index) {
+    const row = submissions[index];
+    setEditingRowIndex(index);
+    setForm({
+      csm: row.csm,
+      tier: row.tier,
+      activity: row.activity,
+      reviews: row.reviews,
+      notes: row.notes,
+    });
+    setView('submit');
   }
 
   const stats = useMemo(() => {
@@ -354,14 +384,17 @@ export default function App() {
           </div>
         )}
 
+        {/* ─── SUBMIT FORM ─── */}
         {view === 'submit' && (
           <div style={{ maxWidth: 560 }}>
             <div style={S.card}>
               <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-                Log an advocacy activity
+                {editingRowIndex !== null ? '✏️ Edit entry' : 'Log an advocacy activity'}
               </div>
               <div style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>
-                Points calculate automatically.
+                {editingRowIndex !== null 
+                  ? '⚠️ Edits update the form only. Go to Google Sheet to save changes.'
+                  : 'Points calculate automatically.'}
               </div>
 
               {success && (
@@ -421,28 +454,49 @@ export default function App() {
                 </div>
               )}
 
-              <button onClick={handleSubmit} disabled={submitting}
-                style={{ ...S.btn, width: '100%', opacity: submitting ? 0.5 : 1 }}>
-                {submitting ? 'Submitting…' : 'Submit'}
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={handleSubmit} disabled={submitting}
+                  style={{ ...S.btn, flex: 1, opacity: submitting ? 0.5 : 1 }}>
+                  {submitting ? 'Submitting…' : editingRowIndex !== null ? 'Done editing' : 'Submit'}
+                </button>
+                {editingRowIndex !== null && (
+                  <button onClick={() => {
+                    setEditingRowIndex(null);
+                    setForm({ csm: '', tier: 'SMB', activity: '', reviews: '', notes: '' });
+                  }} style={S.btnSecondary}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              {editingRowIndex !== null && (
+                <div style={{ marginTop: 12, padding: '10px 12px', background: '#fef3c7',
+                  borderRadius: 8, fontSize: 12, color: '#854f0b' }}>
+                  <strong>Note:</strong> To save changes, delete this row from your Google Sheet and create a new one, or edit directly in the sheet.
+                </div>
+              )}
             </div>
           </div>
         )}
 
+        {/* ─── DASHBOARD ─── */}
         {view === 'dashboard' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginBottom: 18 }}>
               <h2 style={{ margin: 0, fontSize: 18 }}>Live dashboard</h2>
               <button onClick={exportPDF} style={S.btnSecondary}>
                 ⬇ Download PDF report
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 28 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: 14, marginBottom: 28 }}>
               <StatCard label="Total points" value={stats.totalPts} accent="#4f46e5" />
               <StatCard label="G2 reviews" value={stats.g2Reviews} accent="#059669" />
               <StatCard label="Case studies" value={stats.caseStudies} accent="#d97706" />
-              <StatCard label="At payout" value={atPayout} sub={`of ${CSMS.length} CSMs`} accent="#7c3aed" />
+              <StatCard label="At payout" value={atPayout}
+                sub={`of ${CSMS.length} CSMs`} accent="#7c3aed" />
             </div>
 
             <div style={{ ...S.card, marginBottom: 24 }}>
@@ -451,7 +505,8 @@ export default function App() {
               </div>
               {leaderboard.map(c => (
                 <div key={c.csm} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between',
+                    marginBottom: 5 }}>
                     <span style={{ fontSize: 13, fontWeight: 500 }}>{c.csm}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {c.pts >= CERT && <Badge color="purple">Certified</Badge>}
@@ -507,9 +562,11 @@ export default function App() {
           </div>
         )}
 
+        {/* ─── LEADERBOARD ─── */}
         {view === 'leaderboard' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+            <div style={{ display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
               {leaderboard.slice(0, 3).map((c, i) => (
                 <div key={c.csm} style={{ ...S.card,
                   borderTop: `3px solid ${['#f59e0b','#94a3b8','#b45309'][i]}`,
@@ -558,6 +615,7 @@ export default function App() {
           </div>
         )}
 
+        {/* ─── LOG ─── */}
         {view === 'log' && (
           <div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
@@ -579,25 +637,35 @@ export default function App() {
               )}
               {filteredSubs.map((s, i) => (
                 <div key={i} style={{ padding: '14px 6px',
-                  borderBottom: i < filteredSubs.length - 1 ? '1px solid #f0efe9' : 'none',
-                  display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{s.csm}</span>
-                      <Badge color="gray">{s.tier}</Badge>
-                      {s.reviews && <Badge color="blue">×{s.reviews}</Badge>}
+                  borderBottom: i < filteredSubs.length - 1 ? '1px solid #f0efe9' : 'none' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start',
+                    justifyContent: 'space-between' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{s.csm}</span>
+                        <Badge color="gray">{s.tier}</Badge>
+                        {s.reviews && <Badge color="blue">×{s.reviews}</Badge>}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#555', marginTop: 3 }}>
+                        {s.activity}
+                      </div>
+                      {s.notes && (
+                        <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{s.notes}</div>
+                      )}
+                      <div style={{ fontSize: 11, color: '#bbb', marginTop: 3 }}>{fmtDate(s.date)}</div>
                     </div>
-                    <div style={{ fontSize: 13, color: '#555', marginTop: 3 }}>
-                      {s.activity}
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: '#4f46e5' }}>
+                        +{s.points}
+                      </span>
+                      <button onClick={() => startEditRow(i)} style={{ ...S.btnSecondary, padding: '6px 10px', fontSize: 12 }}>
+                        ✏️ Edit
+                      </button>
+                      <button onClick={() => handleDeleteRow(i)} style={{ ...S.btnDanger, padding: '6px 10px', fontSize: 12 }}>
+                        🗑️ Delete
+                      </button>
                     </div>
-                    {s.notes && (
-                      <div style={{ fontSize: 12, color: '#aaa', marginTop: 2 }}>{s.notes}</div>
-                    )}
-                    <div style={{ fontSize: 11, color: '#bbb', marginTop: 3 }}>{fmtDate(s.date)}</div>
                   </div>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: '#4f46e5' }}>
-                    +{s.points}
-                  </span>
                 </div>
               ))}
             </div>
