@@ -95,102 +95,100 @@ function doGet(e) {
   }
 }
 
-// ─── CREATE ───────────────────────────────────────────────────────────────────
+// ─── ALL WRITES GO THROUGH doPost ────────────────────────────────────────────
+// Browsers block PUT/DELETE in no-cors mode.
+// We use POST for everything and route by _action field.
 
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
-    const sheet   = getSheet();
-    ensureHeaders(sheet);
+    const action  = payload._action || 'create';
 
-    const validationError = validatePayload(payload);
-    if (validationError) return jsonOut({ ok: false, error: validationError });
+    if (action === 'create') return handleCreate(payload);
+    if (action === 'update') return handleUpdate(payload);
+    if (action === 'delete') return handleDelete(payload);
 
-    sheet.appendRow([
-      payload.date       || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-      String(payload.csm).trim(),
-      String(payload.tier).trim(),
-      String(payload.activity).trim(),
-      payload.reviews !== '' && payload.reviews !== null ? Number(payload.reviews) : '',
-      String(payload.notes || '').trim().slice(0, 500),
-      Number(payload.points),
-    ]);
-
-    return jsonOut({ ok: true, message: 'Created.' });
+    return jsonOut({ ok: false, error: `Unknown action: ${action}` });
   } catch (err) {
     return jsonOut({ ok: false, error: err.message });
   }
 }
 
-// ─── UPDATE ───────────────────────────────────────────────────────────────────
+function handleCreate(payload) {
+  const sheet = getSheet();
+  ensureHeaders(sheet);
 
-function doPut(e) {
-  try {
-    const payload = JSON.parse(e.postData.contents);
-    const sheet   = getSheet();
+  const validationError = validatePayload(payload);
+  if (validationError) return jsonOut({ ok: false, error: validationError });
 
-    const rowIndex = Number(payload.rowIndex);
-    if (!Number.isFinite(rowIndex) || rowIndex < 2) {
-      return jsonOut({ ok: false, error: 'Invalid rowIndex.' });
-    }
+  sheet.appendRow([
+    payload.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+    String(payload.csm).trim(),
+    String(payload.tier).trim(),
+    String(payload.activity).trim(),
+    payload.reviews !== '' && payload.reviews !== null ? Number(payload.reviews) : '',
+    String(payload.notes || '').trim().slice(0, 500),
+    Number(payload.points),
+  ]);
 
-    const maxRows = sheet.getLastRow();
-    if (rowIndex > maxRows) {
-      return jsonOut({ ok: false, error: `Row ${rowIndex} does not exist (last row: ${maxRows}).` });
-    }
-
-    const validationError = validatePayload(payload);
-    if (validationError) return jsonOut({ ok: false, error: validationError });
-
-    // Verify the row still has data (guard against stale rowIndex)
-    const existingCsm = sheet.getRange(rowIndex, 2).getValue();
-    if (!existingCsm || String(existingCsm).trim() === '') {
-      return jsonOut({ ok: false, error: `Row ${rowIndex} appears to be empty. Refresh and try again.` });
-    }
-
-    sheet.getRange(rowIndex, 1, 1, 7).setValues([[
-      payload.date       || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
-      String(payload.csm).trim(),
-      String(payload.tier).trim(),
-      String(payload.activity).trim(),
-      payload.reviews !== '' && payload.reviews !== null ? Number(payload.reviews) : '',
-      String(payload.notes || '').trim().slice(0, 500),
-      Number(payload.points),
-    ]]);
-
-    return jsonOut({ ok: true, message: `Row ${rowIndex} updated.` });
-  } catch (err) {
-    return jsonOut({ ok: false, error: err.message });
-  }
+  return jsonOut({ ok: true, message: 'Created.' });
 }
 
-// ─── DELETE ───────────────────────────────────────────────────────────────────
+function handleUpdate(payload) {
+  const sheet    = getSheet();
+  const rowIndex = Number(payload.rowIndex);
 
-function doDelete(e) {
-  try {
-    const payload  = JSON.parse(e.postData.contents);
-    const sheet    = getSheet();
-    const rowIndex = Number(payload.rowIndex);
-
-    if (!Number.isFinite(rowIndex) || rowIndex < 2) {
-      return jsonOut({ ok: false, error: 'Invalid rowIndex.' });
-    }
-
-    const maxRows = sheet.getLastRow();
-    if (rowIndex > maxRows) {
-      return jsonOut({ ok: false, error: `Row ${rowIndex} does not exist.` });
-    }
-
-    // Verify row has data before deleting
-    const existingCsm = sheet.getRange(rowIndex, 2).getValue();
-    if (!existingCsm || String(existingCsm).trim() === '') {
-      return jsonOut({ ok: false, error: `Row ${rowIndex} is already empty.` });
-    }
-
-    sheet.deleteRow(rowIndex);
-
-    return jsonOut({ ok: true, message: `Row ${rowIndex} deleted.` });
-  } catch (err) {
-    return jsonOut({ ok: false, error: err.message });
+  if (!Number.isFinite(rowIndex) || rowIndex < 2) {
+    return jsonOut({ ok: false, error: 'Invalid rowIndex.' });
   }
+
+  const maxRows = sheet.getLastRow();
+  if (rowIndex > maxRows) {
+    return jsonOut({ ok: false, error: `Row ${rowIndex} does not exist (last row: ${maxRows}).` });
+  }
+
+  const validationError = validatePayload(payload);
+  if (validationError) return jsonOut({ ok: false, error: validationError });
+
+  // Guard against stale rowIndex — verify row has data
+  const existingCsm = sheet.getRange(rowIndex, 2).getValue();
+  if (!existingCsm || String(existingCsm).trim() === '') {
+    return jsonOut({ ok: false, error: `Row ${rowIndex} appears empty. Refresh the app and try again.` });
+  }
+
+  sheet.getRange(rowIndex, 1, 1, 7).setValues([[
+    payload.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'),
+    String(payload.csm).trim(),
+    String(payload.tier).trim(),
+    String(payload.activity).trim(),
+    payload.reviews !== '' && payload.reviews !== null ? Number(payload.reviews) : '',
+    String(payload.notes || '').trim().slice(0, 500),
+    Number(payload.points),
+  ]]);
+
+  return jsonOut({ ok: true, message: `Row ${rowIndex} updated.` });
+}
+
+function handleDelete(payload) {
+  const sheet    = getSheet();
+  const rowIndex = Number(payload.rowIndex);
+
+  if (!Number.isFinite(rowIndex) || rowIndex < 2) {
+    return jsonOut({ ok: false, error: 'Invalid rowIndex.' });
+  }
+
+  const maxRows = sheet.getLastRow();
+  if (rowIndex > maxRows) {
+    return jsonOut({ ok: false, error: `Row ${rowIndex} does not exist.` });
+  }
+
+  // Guard against deleting an empty/wrong row
+  const existingCsm = sheet.getRange(rowIndex, 2).getValue();
+  if (!existingCsm || String(existingCsm).trim() === '') {
+    return jsonOut({ ok: false, error: `Row ${rowIndex} is already empty.` });
+  }
+
+  sheet.deleteRow(rowIndex);
+
+  return jsonOut({ ok: true, message: `Row ${rowIndex} deleted.` });
 }
