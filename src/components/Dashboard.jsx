@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  TEAM_TARGETS, PROGRAM_WEEKS, currentWeekNumber,
+  PROGRAM_WEEKS, currentWeekNumber,
   programProgress, getPaceStatus, PACE_LABELS,
 } from "../types/index.js";
 import {
@@ -14,19 +14,6 @@ import { Card, StatCard, Badge, ProgressBar, Button, SectionTitle, colors } from
 function PaceBadge({ status }) {
   if (!status) return null;
   const p = PACE_LABELS[status];
-  async function handleSendSlack() {
-    setSlacking(true);
-    setSlackMsg(null);
-    try {
-      const result = await sendSlackUpdate(submissions);
-      setSlackMsg({ ok: true, text: "✅ Sent to #spiff-ops!" });
-    } catch (err) {
-      setSlackMsg({ ok: false, text: `❌ ${err.message}` });
-    } finally {
-      setSlacking(false);
-      setTimeout(() => setSlackMsg(null), 5000);
-    }
-  }
 
   return (
     <span style={{
@@ -128,6 +115,20 @@ export default function Dashboard({ submissions }) {
   const [slackMsg,   setSlackMsg]  = useState(null); // {ok, text}
   const week     = currentWeekNumber();
   const progress = programProgress();
+
+  async function handleSendSlack() {
+    setSlacking(true);
+    setSlackMsg(null);
+    try {
+      await sendSlackUpdate(submissions);
+      setSlackMsg({ ok: true, text: "Sent to Slack." });
+    } catch (err) {
+      setSlackMsg({ ok: false, text: err.message });
+    } finally {
+      setSlacking(false);
+      setTimeout(() => setSlackMsg(null), 5000);
+    }
+  }
 
   // split into with-targets and without
   const withTargets    = csmStats.filter(c => c.targets);

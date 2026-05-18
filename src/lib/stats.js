@@ -1,4 +1,4 @@
-import { CSMS, ACTIVITIES, ACTIVITY_CATEGORIES, TEAM_TARGETS, getCsm } from "../types/index.js";
+import { CSMS, ACTIVITIES, ACTIVITY_CATEGORIES, TEAM_TARGETS } from "../types/index.js";
 
 function isReview(label)    { return ACTIVITIES.find(a => a.label === label)?.category === "Reviews"; }
 function isReference(label) { return label === "Reference Customer"; }

@@ -111,6 +111,7 @@ function doPost(e) {
     if (action === "create") return handleCreate(payload);
     if (action === "update") return handleUpdate(payload);
     if (action === "delete") return handleDelete(payload);
+    if (action === "slack")  return handleSlack(payload);
     return jsonOut({ ok:false, error:`Unknown action: ${action}` });
   } catch(err) {
     return jsonOut({ ok:false, error:err.message });
