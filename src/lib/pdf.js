@@ -1,12 +1,12 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatDate, CSMS, REVIEW_TARGET, ACTIVITIES } from '../types/index.js';
-import { buildLeaderboard, buildActivityBreakdown, buildSummaryStats } from './stats.js';
+import { formatDate, CSMS, ACTIVITIES, TEAM_TARGETS } from '../types/index.js';
+import { buildLeaderboard, buildActivityBreakdown, buildTeamSummary } from './stats.js';
 
 export function exportReport(submissions) {
   const doc      = new jsPDF();
   const today    = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const stats    = buildSummaryStats(submissions);
+  const stats    = buildTeamSummary(submissions);
   const lb       = buildLeaderboard(submissions);
   const actBreak = buildActivityBreakdown(submissions);
 
@@ -22,7 +22,7 @@ export function exportReport(submissions) {
   autoTable(doc, {
     startY: 48,
     head: [['Total Points', 'Total Reviews', 'Total Activities', 'Primary Activities']],
-    body: [[stats.totalPts, `${stats.totalReviews} / ${REVIEW_TARGET} target`, stats.totalActs, stats.primaryActs]],
+    body: [[stats.totalPts, `${stats.totalReviews} / ${stats.targets.reviews} target`, stats.totalActs, stats.totalActs]],
     styles: { fontSize: 11, halign: 'center', cellPadding: 6 },
     headStyles: { fillColor: [26, 26, 26], textColor: 255, fontStyle: 'bold' },
     bodyStyles: { textColor: [79, 70, 229], fontStyle: 'bold', fontSize: 14 },
@@ -35,7 +35,7 @@ export function exportReport(submissions) {
   autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 18,
     head: [['Rank', 'CSM Name', 'Total Pts', 'Reviews', 'Activities']],
-    body: lb.map((c, i) => [i + 1, c.csm, c.pts, `${c.reviews} / ${REVIEW_TARGET}`, c.activities]),
+    body: lb.map((c, i) => [i + 1, c.displayName || c.fullName, c.pts, `${c.reviews} / ${REVIEW_TARGET}`, c.activities]),
     styles: { fontSize: 9, cellPadding: 4 },
     headStyles: { fillColor: [45, 45, 45], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [250, 250, 248] },
