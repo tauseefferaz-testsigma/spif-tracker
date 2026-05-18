@@ -1,15 +1,12 @@
-// Slack notifications routed through Apps Script backend
-// This avoids the browser CORS issue with Slack webhooks directly
-
 import {
   currentWeekNumber, PROGRAM_WEEKS, getPaceStatus,
 } from "../types/index.js";
 import { buildTeamSummary, buildCsmStats } from "./stats.js";
 
-const APPS_SCRIPT_URL = import.meta.env.VITE_APPS_SCRIPT_URL || "";
+const SLACK_API_URL = "/api/slack-snapshot";
 
 export function isSlackConfigured() {
-  return Boolean(APPS_SCRIPT_URL);
+  return true;
 }
 
 function progressBar(actual, target, length = 10) {
@@ -91,19 +88,23 @@ ${paceLines}`;
 }
 
 export async function sendSlackUpdate(submissions) {
-  if (!APPS_SCRIPT_URL) {
-    throw new Error("Apps Script URL not configured.");
-  }
-
   const text = buildSlackMessage(submissions);
-
-  // Route through Apps Script backend to avoid CORS
-  await fetch(APPS_SCRIPT_URL, {
-    method:  "POST",
-    mode:    "no-cors",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body:    JSON.stringify({ _action: "slack", text }),
+  const response = await fetch(SLACK_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({ text }),
   });
 
-  return { ok: true, text };
+  let result = null;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("Slack endpoint returned an unreadable response.");
+  }
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.error || "Slack send failed.");
+  }
+
+  return { ok: true, text, message: result.message || "Sent to Slack." };
 }

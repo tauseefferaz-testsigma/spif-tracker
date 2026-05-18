@@ -39,6 +39,7 @@ spif-v2/
 | Variable | Required | Description |
 |---|---|---|
 | `VITE_APPS_SCRIPT_URL` | ✅ Yes | Google Apps Script Web App URL |
+| `SLACK_WEBHOOK_URL` | For Slack button | Slack incoming webhook used by the Vercel serverless function |
 
 ---
 
@@ -99,8 +100,12 @@ vercel
    - **Name:** `VITE_APPS_SCRIPT_URL`
    - **Value:** Your Web App URL from Step 2
    - **Environments:** Production, Preview, Development ✅
-3. Click **Save**
-4. Go to **Deployments → Redeploy**
+3. Add:
+   - **Name:** `SLACK_WEBHOOK_URL`
+   - **Value:** Your Slack incoming webhook URL
+   - **Environments:** Production, Preview, Development ✅
+4. Click **Save**
+5. Go to **Deployments → Redeploy**
 
 ---
 

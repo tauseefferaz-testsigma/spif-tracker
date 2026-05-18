@@ -120,8 +120,8 @@ export default function Dashboard({ submissions }) {
     setSlacking(true);
     setSlackMsg(null);
     try {
-      await sendSlackUpdate(submissions);
-      setSlackMsg({ ok: true, text: "Sent to Slack." });
+      const result = await sendSlackUpdate(submissions);
+      setSlackMsg({ ok: true, text: result.message || "Sent to Slack." });
     } catch (err) {
       setSlackMsg({ ok: false, text: err.message });
     } finally {
