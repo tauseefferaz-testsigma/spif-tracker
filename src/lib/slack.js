@@ -25,6 +25,27 @@ function paceEmoji(status) {
   return "⚪";
 }
 
+const SLACK_NAMES = {
+  "Mohammed Tamiz Uddin": "Tamiz",
+  "Aravinda G": "Aravinda",
+  "Subhopriyo Sen": "Subho",
+  "sakshi.bagri": "Sakshi",
+  "Rama Varma": "Ram",
+  "Arun S": "Arun",
+  "Varun Thakur": "Varun",
+  "Shabrish BM": "Shabrish",
+  "Tauseef Feraz": "Tauseef",
+  "Aarathy Sundaresan": "Aarathy",
+};
+
+function shortName(name) {
+  return SLACK_NAMES[name] || name;
+}
+
+function padRight(value, width) {
+  return String(value).padEnd(width, " ");
+}
+
 export function buildSlackMessage(submissions) {
   const week    = currentWeekNumber();
   const summary = buildTeamSummary(submissions);
@@ -32,49 +53,41 @@ export function buildSlackMessage(submissions) {
 
   const today   = new Date();
   const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const day     = today.getDay();
-  const tone    = day === 1 ? "monday" : day === 5 ? "friday" : "snapshot";
-
   const reviewPct = Math.round((summary.totalReviews / summary.targets.reviews) * 100) || 0;
   const refPct    = Math.round((summary.totalRefs    / summary.targets.references) * 100) || 0;
   const storyPct  = Math.round((summary.totalStories / summary.targets.stories) * 100) || 0;
 
   const medals = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣"];
-  const lbLines = lb.slice(0, 5).map((c, i) => {
+  const topRows = lb.slice(0, 5);
+  const lbLines = topRows.map((c, i) => {
     const pace = c.targets ? getPaceStatus(c.reviews, c.targets.reviews) : null;
-    return `${medals[i]} *${c.name}* — ${c.pts} pts  ${pace ? paceEmoji(pace) : "⚪"}`;
+    return `${medals[i]} ${padRight(shortName(c.name), 9)} — ${c.pts} pts  ${pace ? paceEmoji(pace) : "⚪"}`;
   }).join("\n");
+  const leaderboardBlock = lb.length > 5 ? `${lbLines}\n...` : lbLines;
 
   const withTargets = lb.filter(c => c.targets);
-  const ahead   = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "ahead").map(c => c.name);
-  const onTrack = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "on_track").map(c => c.name);
-  const behind  = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "behind").map(c => c.name);
+  const ahead   = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "ahead").map(c => shortName(c.name));
+  const onTrack = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "on_track").map(c => shortName(c.name));
+  const behind  = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "behind").map(c => shortName(c.name));
 
   const paceLines = [
-    ahead.length   ? `🟢 *Ahead*     — ${ahead.join(", ")}`   : null,
-    onTrack.length ? `🟡 *On Track*  — ${onTrack.join(", ")}` : null,
-    behind.length  ? `🔴 *Behind*    — ${behind.join(", ")}`  : null,
-  ].filter(Boolean).join("\n") || "No pace data yet — start logging!";
+    ahead.length   ? `🟢 Ahead    — ${ahead.join(", ")}`   : null,
+    onTrack.length ? `🟡 On Track — ${onTrack.join(", ")}` : null,
+    behind.length  ? `🔴 Behind   — ${behind.join(", ")}`  : null,
+  ].filter(Boolean).join("\n") || "No pace data yet.";
 
-  const header =
-    tone === "monday"   ? `🏅 *SPIF Tracker — Week ${week} of ${PROGRAM_WEEKS} kicks off today* | ${dateStr}` :
-    tone === "friday"   ? `📋 *SPIF — Week ${week} of ${PROGRAM_WEEKS} wrap-up* | ${dateStr}` :
-                          `📊 *SPIF Tracker — Snapshot* | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}`;
+  return `📊 SPIF Tracker — Snapshot | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}
 
-  return `${header}
-
-*📊 Team Progress*
+📊 Team Progress
 Reviews      ${progressBar(summary.totalReviews, summary.targets.reviews)}  ${summary.totalReviews} / ${summary.targets.reviews}  (${reviewPct}%)
 References   ${progressBar(summary.totalRefs, summary.targets.references)}  ${summary.totalRefs} / ${summary.targets.references}  (${refPct}%)
 Stories      ${progressBar(summary.totalStories, summary.targets.stories)}  ${summary.totalStories} / ${summary.targets.stories}  (${storyPct}%)
 
-*🏆 Leaderboard*
-${lbLines}
+🏆 Leaderboard
+${leaderboardBlock}
 
-*⚡ Pace Check*
-${paceLines}
-
-_Log your activities → https://spif-tracker.vercel.app_`;
+⚡ Pace Check
+${paceLines}`;
 }
 
 export async function sendSlackUpdate(submissions) {
