@@ -1,99 +1,42 @@
 // ─── PROGRAM CONFIG ───────────────────────────────────────────────────────────
-export const PROGRAM_START = "2026-05-01"; // change this to shift the sprint
+export const PROGRAM_START = "2026-05-01";
 export const PROGRAM_WEEKS = 5;
 
 export function currentWeekNumber() {
-  const start = new Date(PROGRAM_START);
-  const now   = new Date();
+  const start  = new Date(PROGRAM_START);
+  const now    = new Date();
   const diffMs = now - start;
   if (diffMs < 0) return 0;
-  const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
-  return Math.min(week, PROGRAM_WEEKS);
+  return Math.min(Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1, PROGRAM_WEEKS);
 }
 
 export function programProgress() {
-  const week = currentWeekNumber();
-  return week / PROGRAM_WEEKS; // 0.0 → 1.0
+  return currentWeekNumber() / PROGRAM_WEEKS;
 }
 
 // ─── CSM ROSTER ───────────────────────────────────────────────────────────────
-// displayName = used in dropdown + leaderboard
-// fullName    = stored in Google Sheet
-// targets     = null means no target assigned (Tauseef, Aarathy)
+// name = shown in dropdown + stored in Sheet + used everywhere
+// targets = null means no target assigned
 export const CSMS = [
-  {
-    displayName: "Subho",
-    fullName:    "Subhopriyo Sen",
-    track:       "Enterprise, APAC",
-    targets:     { reviews: 5, references: 1, stories: 1 },
-  },
-  {
-    displayName: "Sakshi",
-    fullName:    "sakshi.bagri",
-    track:       "Enterprise, India",
-    targets:     { reviews: 5, references: 1, stories: 1 },
-  },
-  {
-    displayName: "Ram",
-    fullName:    "Rama Varma",
-    track:       "Enterprise, Americas",
-    targets:     { reviews: 5, references: 1, stories: 1 },
-  },
-  {
-    displayName: "Tamiz",
-    fullName:    "Mohammed Tamiz Uddin",
-    track:       "Specialist, Americas",
-    targets:     { reviews: 7, references: 2, stories: 2 },
-  },
-  {
-    displayName: "Aravinda",
-    fullName:    "Aravinda G",
-    track:       "Specialist, Americas",
-    targets:     { reviews: 7, references: 2, stories: 2 },
-  },
-  {
-    displayName: "Arun",
-    fullName:    "Arun S",
-    track:       "Specialist, EMEA",
-    targets:     { reviews: 7, references: 2, stories: 2 },
-  },
-  {
-    displayName: "Varun",
-    fullName:    "Varun Thakur",
-    track:       "Specialist, EMEA",
-    targets:     { reviews: 7, references: 2, stories: 2 },
-  },
-  {
-    displayName: "Shabrish",
-    fullName:    "Shabrish BM",
-    track:       "Specialist, India/APAC",
-    targets:     { reviews: 7, references: 2, stories: 2 },
-  },
-  {
-    displayName: "Tauseef",
-    fullName:    "Tauseef Feraz",
-    track:       "—",
-    targets:     null,
-  },
-  {
-    displayName: "Aarathy",
-    fullName:    "Aarathy Sundaresan",
-    track:       "—",
-    targets:     null,
-  },
+  { name: "Subhopriyo Sen",      track: "Enterprise, APAC",      targets: { reviews: 5, references: 1, stories: 1 } },
+  { name: "sakshi.bagri",        track: "Enterprise, India",     targets: { reviews: 5, references: 1, stories: 1 } },
+  { name: "Rama Varma",          track: "Enterprise, Americas",  targets: { reviews: 5, references: 1, stories: 1 } },
+  { name: "Mohammed Tamiz Uddin",track: "Specialist, Americas",  targets: { reviews: 7, references: 2, stories: 2 } },
+  { name: "Aravinda G",          track: "Specialist, Americas",  targets: { reviews: 7, references: 2, stories: 2 } },
+  { name: "Arun S",              track: "Specialist, EMEA",      targets: { reviews: 7, references: 2, stories: 2 } },
+  { name: "Varun Thakur",        track: "Specialist, EMEA",      targets: { reviews: 7, references: 2, stories: 2 } },
+  { name: "Shabrish BM",         track: "Specialist, India/APAC",targets: { reviews: 7, references: 2, stories: 2 } },
+  { name: "Tauseef Feraz",       track: "—",                     targets: null },
+  { name: "Aarathy Sundaresan",  track: "—",                     targets: null },
 ];
 
-export const CSM_DISPLAY_NAMES = CSMS.map(c => c.displayName);
-export const CSM_FULL_NAMES    = CSMS.map(c => c.fullName);
+export const CSM_NAMES = CSMS.map(c => c.name);
 
-export function getCsmByDisplay(displayName) {
-  return CSMS.find(c => c.displayName === displayName) || null;
-}
-export function getCsmByFull(fullName) {
-  return CSMS.find(c => c.fullName === fullName) || null;
+export function getCsm(name) {
+  return CSMS.find(c => c.name === name) || null;
 }
 
-// Team-level targets (sum of all CSMs with targets)
+// Team-level targets (sum of CSMs with targets)
 export const TEAM_TARGETS = CSMS.reduce(
   (acc, csm) => {
     if (csm.targets) {
@@ -108,15 +51,12 @@ export const TEAM_TARGETS = CSMS.reduce(
 
 // ─── ACTIVITIES ───────────────────────────────────────────────────────────────
 export const ACTIVITIES = [
-  // Reviews
-  { id: "g2",       label: "G2 Review",                      category: "Reviews",           points: 2,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
-  { id: "gartner",  label: "Gartner Peer Insights Review",   category: "Reviews",           points: 3,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
-  // Customer Advocacy
-  { id: "ref",      label: "Reference Customer",             category: "Customer Advocacy", points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
-  { id: "story",    label: "Success Story",                  category: "Customer Advocacy", points: 5,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: true,  contextLabel: "Story URL or Title", contextPlaceholder: "e.g. acme.com/story" },
-  // Recognition
-  { id: "webinar",  label: "Webinar Speaker",                category: "Recognition",       points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: false, showContext: true,  contextLabel: "Webinar Name",       contextPlaceholder: "e.g. SaaStr 2026" },
-  { id: "social",   label: "Customer Social Post",           category: "Recognition",       points: 2,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: true,  contextLabel: "Post URL",           contextPlaceholder: "e.g. linkedin.com/posts/xyz" },
+  { id: "g2",      label: "G2 Review",                    category: "Reviews",           points: 2,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
+  { id: "gartner", label: "Gartner Peer Insights Review", category: "Reviews",           points: 3,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
+  { id: "ref",     label: "Reference Customer",           category: "Customer Advocacy", points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
+  { id: "story",   label: "Success Story",                category: "Customer Advocacy", points: 5,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: true,  contextLabel: "Story URL or Title", contextPlaceholder: "e.g. acme.com/story" },
+  { id: "webinar", label: "Webinar Speaker",              category: "Recognition",       points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: false, showContext: true,  contextLabel: "Webinar Name",       contextPlaceholder: "e.g. SaaStr 2026" },
+  { id: "social",  label: "Customer Social Post",         category: "Recognition",       points: 2,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: true,  contextLabel: "Post URL",           contextPlaceholder: "e.g. linkedin.com/posts/xyz" },
 ];
 
 export const ACTIVITY_CATEGORIES = ["Reviews", "Customer Advocacy", "Recognition"];
@@ -148,15 +88,14 @@ export function validateSubmission(data) {
   const errors   = {};
   const activity = getActivity(data.activity);
 
-  if (!data.csm || !CSM_DISPLAY_NAMES.includes(data.csm)) {
+  if (!data.csm || !CSM_NAMES.includes(data.csm))
     errors.csm = "Select a valid CSM name.";
-  }
-  if (!activity) {
+  if (!activity)
     errors.activity = "Select a valid activity.";
-  }
   if (activity?.showCount) {
     const n = parseInt(data.reviews, 10);
-    if (!Number.isFinite(n) || n < 1 || n > 100) errors.reviews = "Enter a number between 1 and 100.";
+    if (!Number.isFinite(n) || n < 1 || n > 100)
+      errors.reviews = "Enter a number between 1 and 100.";
   }
   if (activity?.showCustomer) {
     if (!data.customerName?.trim() || data.customerName.trim().length < 2)
@@ -168,20 +107,17 @@ export function validateSubmission(data) {
     if (!data.context?.trim() || data.context.trim().length < 2)
       errors.context = `Enter the ${activity.contextLabel?.toLowerCase() || "required field"}.`;
   }
-  if (data.notes && String(data.notes).length > 500) {
+  if (data.notes && String(data.notes).length > 500)
     errors.notes = "Notes must be under 500 characters.";
-  }
+
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
 export function sanitizeSubmission(raw) {
   const activity = getActivity(raw.activity);
-  // store fullName in Sheet, displayName in UI
-  const csm = getCsmByDisplay(raw.csm);
   return {
     date:          raw.date || todayISO(),
-    csm:           csm?.fullName || raw.csm,
-    displayName:   csm?.displayName || raw.csm,
+    csm:           String(raw.csm || "").trim(),
     activity:      String(raw.activity || "").trim(),
     category:      activity?.category || "",
     reviews:       activity?.perReview ? Math.max(1, parseInt(raw.reviews, 10) || 1) : "",
@@ -195,7 +131,7 @@ export function sanitizeSubmission(raw) {
 
 // ─── PACE STATUS ──────────────────────────────────────────────────────────────
 export function getPaceStatus(actual, target) {
-  if (!target || target === 0) return null; // no target assigned
+  if (!target) return null;
   const expected = programProgress() * target;
   if (expected === 0) return "on_track";
   const ratio = actual / expected;

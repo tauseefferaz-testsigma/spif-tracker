@@ -35,7 +35,7 @@ export function exportReport(submissions) {
   autoTable(doc, {
     startY: doc.lastAutoTable.finalY + 18,
     head: [['Rank', 'CSM Name', 'Total Pts', 'Reviews', 'Activities']],
-    body: lb.map((c, i) => [i + 1, c.displayName || c.fullName, c.pts, `${c.reviews} / ${REVIEW_TARGET}`, c.activities]),
+    body: lb.map((c, i) => [i + 1, c.name, c.pts, `${c.reviews} / ${REVIEW_TARGET}`, c.activities]),
     styles: { fontSize: 9, cellPadding: 4 },
     headStyles: { fillColor: [45, 45, 45], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [250, 250, 248] },

@@ -27,13 +27,13 @@ export default function Leaderboard({ submissions }) {
           const medals  = ["🥇","🥈","🥉"];
           const pace    = c.targets ? getPaceStatus(c.reviews, c.targets.reviews) : null;
           return (
-            <div key={c.displayName} style={{
+            <div key={c.name} style={{
               background: colors.surface, border: `1px solid ${colors.border}`,
               borderTop: `3px solid ${accents[i]}`, borderRadius: 14,
               padding: "20px 18px", textAlign: "center",
             }}>
               <div style={{ fontSize: 32, marginBottom: 6 }}>{medals[i]}</div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: colors.dark }}>{c.displayName}</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: colors.dark }}>{c.name}</div>
               <div style={{ fontSize: 11, color: colors.muted, margin: "2px 0 8px" }}>{c.track}</div>
               <div style={{ fontSize: 26, fontWeight: 800, color: colors.accent, lineHeight: 1 }}>{c.pts}</div>
               <div style={{ fontSize: 11, color: colors.muted, margin: "4px 0 8px" }}>points</div>
@@ -50,7 +50,7 @@ export default function Leaderboard({ submissions }) {
           const reviewMax = c.targets?.reviews || 0;
           const barColor  = pace === "ahead" ? colors.green : pace === "behind" ? "#ef4444" : colors.accent;
           return (
-            <div key={c.displayName} style={{
+            <div key={c.name} style={{
               display: "flex", alignItems: "center", gap: 12,
               padding: "14px 4px",
               borderBottom: i < lb.length - 1 ? `1px solid ${colors.border}` : "none",
@@ -60,7 +60,7 @@ export default function Leaderboard({ submissions }) {
               </span>
               <div style={{ flex: 1 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.dark }}>{c.displayName}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: colors.dark }}>{c.name}</span>
                   <span style={{ fontSize: 11, color: colors.muted }}>{c.track}</span>
                   {pace && <PaceBadge status={pace} />}
                 </div>

@@ -31,16 +31,16 @@ function ensureHeaders(sheet) {
 
 // Accepts both full names and display names
 const VALID_CSM_NAMES = [
-  "Subhopriyo Sen","Subho",
-  "sakshi.bagri","Sakshi",
-  "Rama Varma","Ram",
-  "Mohammed Tamiz Uddin","Tamiz",
-  "Aravinda G","Aravinda",
-  "Arun S","Arun",
-  "Varun Thakur","Varun",
-  "Shabrish BM","Shabrish",
-  "Tauseef Feraz","Tauseef",
-  "Aarathy Sundaresan","Aarathy",
+  "Subhopriyo Sen",
+  "sakshi.bagri",
+  "Rama Varma",
+  "Mohammed Tamiz Uddin",
+  "Aravinda G",
+  "Arun S",
+  "Varun Thakur",
+  "Shabrish BM",
+  "Tauseef Feraz",
+  "Aarathy Sundaresan",
 ];
 
 const VALID_ACTIVITIES = [

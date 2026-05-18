@@ -42,13 +42,13 @@ export function buildSlackMessage(submissions) {
   const medals = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣"];
   const lbLines = lb.slice(0, 5).map((c, i) => {
     const pace = c.targets ? getPaceStatus(c.reviews, c.targets.reviews) : null;
-    return `${medals[i]} *${c.displayName}* — ${c.pts} pts  ${pace ? paceEmoji(pace) : "⚪"}`;
+    return `${medals[i]} *${c.name}* — ${c.pts} pts  ${pace ? paceEmoji(pace) : "⚪"}`;
   }).join("\n");
 
   const withTargets = lb.filter(c => c.targets);
-  const ahead   = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "ahead").map(c => c.displayName);
-  const onTrack = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "on_track").map(c => c.displayName);
-  const behind  = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "behind").map(c => c.displayName);
+  const ahead   = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "ahead").map(c => c.name);
+  const onTrack = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "on_track").map(c => c.name);
+  const behind  = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "behind").map(c => c.name);
 
   const paceLines = [
     ahead.length   ? `🟢 *Ahead*     — ${ahead.join(", ")}`   : null,

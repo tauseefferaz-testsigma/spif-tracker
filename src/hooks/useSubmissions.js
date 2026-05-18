@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchSubmissions, createSubmission, updateSubmission, deleteSubmission } from "../lib/api.js";
-import { sanitizeSubmission, validateSubmission, getCsmByFull, getCsmByDisplay } from "../types/index.js";
+import { sanitizeSubmission, validateSubmission } from "../types/index.js";
 
 const POLL_MS = 30_000;
 
@@ -18,15 +18,7 @@ export function useSubmissions() {
     setError(null);
     try {
       const data = await fetchSubmissions();
-      if (mountedRef.current) {
-        // enrich each row with displayName for UI
-        const enriched = data.map(r => {
-          const csm = getCsmByFull(r.csm) || getCsmByDisplay(r.csm);
-          return { ...r, displayName: csm?.displayName || r.csm };
-        });
-        setSubmissions(enriched);
-        setLastSynced(new Date());
-      }
+      if (mountedRef.current) { setSubmissions(data); setLastSynced(new Date()); }
     } catch(err) {
       if (mountedRef.current) setError(err.message);
     } finally {
@@ -43,51 +35,48 @@ export function useSubmissions() {
 
   async function create(formData) {
     const { valid, errors } = validateSubmission(formData);
-    if (!valid) return { ok:false, errors };
+    if (!valid) return { ok: false, errors };
     const payload    = sanitizeSubmission(formData);
     const tempId     = `temp_${Date.now()}`;
-    const optimistic = { ...payload, rowIndex:tempId, _pending:true, displayName: formData.csm };
-    setSubmissions(prev => [optimistic, ...prev]);
+    setSubmissions(prev => [{ ...payload, rowIndex: tempId, _pending: true }, ...prev]);
     try {
       await createSubmission(payload);
       setTimeout(() => load(true), 1500);
-      return { ok:true };
+      return { ok: true };
     } catch(err) {
       setSubmissions(prev => prev.filter(r => r.rowIndex !== tempId));
-      return { ok:false, errors:{ _global: err.message } };
+      return { ok: false, errors: { _global: err.message } };
     }
   }
 
   async function update(rowIndex, formData) {
-    if (!rowIndex) return { ok:false, errors:{ _global:"Missing row reference." } };
+    if (!rowIndex) return { ok: false, errors: { _global: "Missing row reference." } };
     const { valid, errors } = validateSubmission(formData);
-    if (!valid) return { ok:false, errors };
+    if (!valid) return { ok: false, errors };
     const payload  = sanitizeSubmission(formData);
     const original = submissions.find(r => r.rowIndex === rowIndex);
-    setSubmissions(prev =>
-      prev.map(r => r.rowIndex === rowIndex ? { ...r, ...payload, displayName: formData.csm, _pending:true } : r)
-    );
+    setSubmissions(prev => prev.map(r => r.rowIndex === rowIndex ? { ...r, ...payload, _pending: true } : r));
     try {
       await updateSubmission({ ...payload, rowIndex });
       setTimeout(() => load(true), 1500);
-      return { ok:true };
+      return { ok: true };
     } catch(err) {
       if (original) setSubmissions(prev => prev.map(r => r.rowIndex === rowIndex ? original : r));
-      return { ok:false, errors:{ _global: err.message } };
+      return { ok: false, errors: { _global: err.message } };
     }
   }
 
   async function remove(rowIndex) {
-    if (!rowIndex) return { ok:false, error:"Missing row reference." };
+    if (!rowIndex) return { ok: false, error: "Missing row reference." };
     const original = submissions.find(r => r.rowIndex === rowIndex);
     setSubmissions(prev => prev.filter(r => r.rowIndex !== rowIndex));
     try {
       await deleteSubmission(rowIndex);
       setTimeout(() => load(true), 1500);
-      return { ok:true };
+      return { ok: true };
     } catch(err) {
       if (original) setSubmissions(prev => [...prev, original].sort((a,b) => new Date(b.date)-new Date(a.date)));
-      return { ok:false, error: err.message };
+      return { ok: false, error: err.message };
     }
   }
 

@@ -65,7 +65,7 @@ function CsmCard({ csm }) {
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: colors.dark }}>{csm.displayName}</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: colors.dark }}>{csm.name}</div>
           <div style={{ fontSize: 11, color: colors.muted, marginTop: 1 }}>{csm.track}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
@@ -240,7 +240,7 @@ export default function Dashboard({ submissions }) {
       {/* ── PER-CSM TARGET GRID ──────────────────────────────────────────────── */}
       <SectionTitle>Individual Progress — Q2 Targets</SectionTitle>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 20 }}>
-        {withTargets.map(csm => <CsmCard key={csm.displayName} csm={csm} />)}
+        {withTargets.map(csm => <CsmCard key={csm.name} csm={csm} />)}
       </div>
 
       {/* CSMs without targets */}
@@ -248,7 +248,7 @@ export default function Dashboard({ submissions }) {
         <>
           <SectionTitle>Team Members — No Q2 Target Assigned</SectionTitle>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {withoutTargets.map(csm => <CsmCard key={csm.displayName} csm={csm} />)}
+            {withoutTargets.map(csm => <CsmCard key={csm.name} csm={csm} />)}
           </div>
         </>
       )}
