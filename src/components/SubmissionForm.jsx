@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { CSM_NAMES, ACTIVITIES, ACTIVITY_CATEGORIES, validateSubmission, calcPoints } from "../types/index.js";
+import {
+  CSM_NAMES,
+  ACTIVITIES,
+  ACTIVITY_CATEGORIES,
+  validateSubmission,
+  calcPoints,
+  getEmailValidationDetails,
+} from "../types/index.js";
 import { Card, FormField, Spinner, colors } from "./ui.jsx";
 
 const EMPTY = { csm: "", activity: "", reviews: "", customerName: "", customerEmail: "", context: "", notes: "" };
@@ -42,11 +49,22 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
 
   const act  = ACTIVITIES.find(a => a.label === form.activity);
   const pts  = form.activity ? calcPoints(form.activity, form.reviews) : null;
+  const emailInfo = getEmailValidationDetails(form.customerEmail);
+  const reviewCount = act?.perReview ? Math.max(1, parseInt(form.reviews, 10) || 1) : null;
+  const emailCountMatches = !act?.showCustomer
+    ? true
+    : !act?.perReview
+      ? emailInfo.uniqueEmails.length > 0
+      : emailInfo.uniqueEmails.length === reviewCount;
 
   const ready = (() => {
     if (!form.csm || !form.activity) return false;
     if (act?.showCount) { const n = parseInt(form.reviews,10); if (!form.reviews||!Number.isFinite(n)||n<1) return false; }
-    if (act?.showCustomer) { if (!form.customerName?.trim()) return false; if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customerEmail)) return false; }
+    if (act?.showCustomer) {
+      if (!form.customerName?.trim()) return false;
+      if (emailInfo.rawEmails.length === 0 || emailInfo.invalidEmails.length > 0 || emailInfo.duplicateCount > 0) return false;
+      if (act?.perReview && !emailCountMatches) return false;
+    }
     if (act?.showContext) { if (!form.context?.trim()) return false; }
     return true;
   })();
@@ -55,8 +73,11 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
   if (!form.csm) missing.push("CSM name");
   if (!form.activity) missing.push("Activity");
   if (act?.showCount && !form.reviews) missing.push("No. of reviews");
-  if (act?.showCustomer && !form.customerName?.trim()) missing.push("Customer name");
-  if (act?.showCustomer && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customerEmail)) missing.push("Customer email");
+  if (act?.showCustomer && !form.customerName?.trim()) missing.push("Customer/company name");
+  if (act?.showCustomer && emailInfo.rawEmails.length === 0) missing.push(act?.perReview ? "Customer emails" : "Customer email");
+  if (act?.showCustomer && emailInfo.invalidEmails.length > 0) missing.push("Valid email format");
+  if (act?.showCustomer && emailInfo.duplicateCount > 0) missing.push("Remove duplicate emails");
+  if (act?.showCustomer && act?.perReview && form.reviews && !emailCountMatches) missing.push(`Exactly ${reviewCount} review email${reviewCount === 1 ? "" : "s"}`);
   if (act?.showContext && !form.context?.trim()) missing.push(act.contextLabel);
 
   async function save() {
@@ -123,14 +144,31 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
         )}
 
         {act?.showCustomer && (<>
-          <FormField label="Customer Name *" error={fe("customerName")}>
+          <FormField label="Customer / Company Name *" error={fe("customerName")}>
             <input type="text" value={form.customerName} onChange={e => set("customerName", e.target.value)}
-              placeholder="e.g. John Smith" style={inp(touched.customerName && !form.customerName?.trim())} />
+              placeholder="customer name (e.g. dhl)" style={inp(touched.customerName && !form.customerName?.trim())} />
           </FormField>
-          <FormField label="Customer Email *" error={fe("customerEmail")}>
-            <input type="email" value={form.customerEmail} onChange={e => set("customerEmail", e.target.value)}
-              placeholder="e.g. john@acme.com"
-              style={inp(touched.customerEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customerEmail))} />
+          <FormField label={act?.perReview ? "Customer Emails *" : "Customer Email(s) *"} error={fe("customerEmail")}>
+            <textarea value={form.customerEmail} onChange={e => set("customerEmail", e.target.value)}
+              placeholder={act?.perReview
+                ? "Enter one email per line or separate with commas"
+                : "Enter one or more emails, separated by commas or new lines"}
+              rows={Math.max(3, act?.perReview ? Math.min(6, reviewCount || 3) : 3)}
+              style={{ ...inp(touched.customerEmail && (emailInfo.rawEmails.length === 0 || emailInfo.invalidEmails.length > 0 || emailInfo.duplicateCount > 0 || (act?.perReview && form.reviews && !emailCountMatches))), resize: "vertical", lineHeight: 1.5 }}
+            />
+            <div style={{ display:"flex", justifyContent:"space-between", gap:12, marginTop:6, fontSize:11, color:colors.muted, flexWrap:"wrap" }}>
+              <span>Use commas or one email per line.</span>
+              <span style={{ color: act?.perReview && form.reviews && !emailCountMatches ? colors.red : colors.mid, fontWeight: 600 }}>
+                {act?.perReview && form.reviews
+                  ? `${emailInfo.uniqueEmails.length} of ${reviewCount} review emails added`
+                  : `${emailInfo.uniqueEmails.length} email${emailInfo.uniqueEmails.length === 1 ? "" : "s"} added`}
+              </span>
+            </div>
+            {emailInfo.duplicateCount > 0 && (
+              <div style={{ fontSize:11, color:colors.red, marginTop:4 }}>
+                Duplicate email addresses are not allowed.
+              </div>
+            )}
           </FormField>
         </>)}
 

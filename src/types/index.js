@@ -65,6 +65,35 @@ export function getActivity(label) {
   return ACTIVITIES.find(a => a.label === label) || null;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function parseEmailList(value) {
+  return String(value || "")
+    .split(/[\n,;]+/)
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export function dedupeEmails(emails) {
+  return [...new Set(emails)];
+}
+
+export function formatEmailList(value) {
+  return dedupeEmails(parseEmailList(value)).join("\n");
+}
+
+export function getEmailValidationDetails(value) {
+  const rawEmails = parseEmailList(value);
+  const uniqueEmails = dedupeEmails(rawEmails);
+  const invalidEmails = uniqueEmails.filter(email => !EMAIL_REGEX.test(email));
+  return {
+    rawEmails,
+    uniqueEmails,
+    invalidEmails,
+    duplicateCount: rawEmails.length - uniqueEmails.length,
+  };
+}
+
 export function calcPoints(activityLabel, reviewCount) {
   const a = getActivity(activityLabel);
   if (!a) return 0;
@@ -100,8 +129,21 @@ export function validateSubmission(data) {
   if (activity?.showCustomer) {
     if (!data.customerName?.trim() || data.customerName.trim().length < 2)
       errors.customerName = "Enter the customer name.";
-    if (!data.customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.customerEmail))
-      errors.customerEmail = "Enter a valid email address.";
+    const { rawEmails, uniqueEmails, invalidEmails, duplicateCount } = getEmailValidationDetails(data.customerEmail);
+    if (rawEmails.length === 0) {
+      errors.customerEmail = activity?.perReview
+        ? "Enter one email per review."
+        : "Enter at least one valid email address.";
+    } else if (invalidEmails.length > 0) {
+      errors.customerEmail = `Invalid email: ${invalidEmails[0]}`;
+    } else if (duplicateCount > 0) {
+      errors.customerEmail = "Remove duplicate email addresses.";
+    } else if (activity?.perReview) {
+      const reviewCount = Math.max(1, parseInt(data.reviews, 10) || 1);
+      if (uniqueEmails.length !== reviewCount) {
+        errors.customerEmail = `Add exactly ${reviewCount} unique email${reviewCount === 1 ? "" : "s"} for ${reviewCount} review${reviewCount === 1 ? "" : "s"}.`;
+      }
+    }
   }
   if (activity?.showContext) {
     if (!data.context?.trim() || data.context.trim().length < 2)
@@ -115,6 +157,7 @@ export function validateSubmission(data) {
 
 export function sanitizeSubmission(raw) {
   const activity = getActivity(raw.activity);
+  const normalizedEmails = formatEmailList(raw.customerEmail);
   return {
     date:          raw.date || todayISO(),
     csm:           String(raw.csm || "").trim(),
@@ -122,7 +165,7 @@ export function sanitizeSubmission(raw) {
     category:      activity?.category || "",
     reviews:       activity?.perReview ? Math.max(1, parseInt(raw.reviews, 10) || 1) : "",
     customerName:  activity?.showCustomer ? String(raw.customerName || "").trim() : "",
-    customerEmail: activity?.showCustomer ? String(raw.customerEmail || "").trim().toLowerCase() : "",
+    customerEmail: activity?.showCustomer ? normalizedEmails : "",
     context:       activity?.showContext  ? String(raw.context || "").trim() : "",
     notes:         String(raw.notes || "").trim().slice(0, 500),
     points:        calcPoints(raw.activity, raw.reviews),

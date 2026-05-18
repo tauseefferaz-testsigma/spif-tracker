@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { CSM_NAMES, ACTIVITY_CATEGORIES, formatDate } from "../types/index.js";
+import { CSM_NAMES, ACTIVITY_CATEGORIES, formatDate, parseEmailList } from "../types/index.js";
 import { Card, Badge, EmptyState, colors } from "./ui.jsx";
 
 export default function SubmissionLog({ submissions, onEdit, onDelete }) {
@@ -73,7 +73,12 @@ export default function SubmissionLog({ submissions, onEdit, onDelete }) {
                   <div style={{ fontSize:13, color:colors.mid }}>{s.activity}</div>
                   {(s.customerName || s.customerEmail) && (
                     <div style={{ fontSize:12, color:colors.muted, marginTop:2 }}>
-                      👤 {[s.customerName, s.customerEmail].filter(Boolean).join(" · ")}
+                      👤 {s.customerName}
+                      {s.customerEmail && (
+                        <span style={{ display:"block", whiteSpace:"pre-wrap", marginTop:2 }}>
+                          {parseEmailList(s.customerEmail).join("\n")}
+                        </span>
+                      )}
                     </div>
                   )}
                   {s.context && <div style={{ fontSize:12, color:colors.muted, marginTop:2 }}>🔗 {s.context}</div>}

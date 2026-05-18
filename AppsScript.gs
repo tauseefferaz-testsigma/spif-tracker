@@ -48,6 +48,14 @@ const VALID_ACTIVITIES = [
   "Reference Customer","Success Story",
   "Webinar Speaker","Customer Social Post",
 ];
+const REVIEW_ACTIVITIES = ["G2 Review", "Gartner Peer Insights Review"];
+const CUSTOMER_ACTIVITIES = [
+  "G2 Review",
+  "Gartner Peer Insights Review",
+  "Reference Customer",
+  "Success Story",
+  "Customer Social Post",
+];
 
 const PROGRAM_START = "2026-05-01";
 const PROGRAM_WEEKS = 5;
@@ -89,17 +97,55 @@ function validatePayload(p) {
   if (!p.activity || !VALID_ACTIVITIES.includes(p.activity)) return "Invalid activity.";
   const pts = Number(p.points);
   if (!Number.isFinite(pts) || pts < 0) return "Invalid points value.";
+  if (CUSTOMER_ACTIVITIES.includes(p.activity)) {
+    const customerName = String(p.customerName || "").trim();
+    if (customerName.length < 2) return "Invalid customer/company name.";
+
+    const emailDetails = getEmailValidationDetails(p.customerEmail);
+    if (emailDetails.rawEmails.length === 0) return "At least one customer email is required.";
+    if (emailDetails.invalidEmails.length > 0) return `Invalid email: ${emailDetails.invalidEmails[0]}`;
+    if (emailDetails.duplicateCount > 0) return "Duplicate customer emails are not allowed.";
+
+    if (REVIEW_ACTIVITIES.includes(p.activity)) {
+      const reviewCount = Math.max(1, parseInt(p.reviews, 10) || 1);
+      if (emailDetails.uniqueEmails.length !== reviewCount) {
+        return `Expected ${reviewCount} unique email${reviewCount === 1 ? "" : "s"} for ${reviewCount} review${reviewCount === 1 ? "" : "s"}.`;
+      }
+    }
+  }
   return null;
 }
 
+function parseEmailList(value) {
+  return String(value || "")
+    .split(/[\n,;]+/)
+    .map(function (email) { return email.trim().toLowerCase(); })
+    .filter(Boolean);
+}
+
+function getEmailValidationDetails(value) {
+  const rawEmails = parseEmailList(value);
+  const uniqueEmails = Array.from(new Set(rawEmails));
+  const invalidEmails = uniqueEmails.filter(function (email) {
+    return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  });
+  return {
+    rawEmails: rawEmails,
+    uniqueEmails: uniqueEmails,
+    invalidEmails: invalidEmails,
+    duplicateCount: rawEmails.length - uniqueEmails.length,
+  };
+}
+
 function rowFromPayload(p) {
+  const normalizedEmails = getEmailValidationDetails(p.customerEmail).uniqueEmails.join("\n");
   return [
     p.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"),
     String(p.csm || "").trim(),
     String(p.activity || "").trim(),
     (p.reviews !== "" && p.reviews !== null && p.reviews !== undefined) ? Number(p.reviews) : "",
     String(p.customerName  || "").trim(),
-    String(p.customerEmail || "").trim().toLowerCase(),
+    normalizedEmails,
     String(p.context || "").trim(),
     String(p.notes   || "").trim().slice(0,500),
     Number(p.points),
