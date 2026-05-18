@@ -151,3 +151,35 @@ function handleDelete(p) {
   sheet.deleteRow(ri);
   return jsonOut({ ok:true, message:`Row ${ri} deleted.` });
 }
+
+// ─── SLACK HANDLER ────────────────────────────────────────────────────────────
+// Called when _action === "slack"
+// Requires SLACK_WEBHOOK_URL set in Apps Script Project Properties
+// Set it: Apps Script editor → Project Settings → Script Properties
+// Key: SLACK_WEBHOOK_URL  Value: https://hooks.slack.com/services/...
+
+function handleSlack(payload) {
+  try {
+    const props      = PropertiesService.getScriptProperties();
+    const webhookUrl = props.getProperty("SLACK_WEBHOOK_URL");
+
+    if (!webhookUrl) {
+      return jsonOut({ ok: false, error: "SLACK_WEBHOOK_URL not set in Script Properties." });
+    }
+
+    const response = UrlFetchApp.fetch(webhookUrl, {
+      method:      "post",
+      contentType: "application/json",
+      payload:     JSON.stringify({ text: payload.text }),
+    });
+
+    const code = response.getResponseCode();
+    if (code !== 200) {
+      return jsonOut({ ok: false, error: `Slack returned HTTP ${code}` });
+    }
+
+    return jsonOut({ ok: true, message: "Sent to Slack." });
+  } catch (err) {
+    return jsonOut({ ok: false, error: err.message });
+  }
+}
