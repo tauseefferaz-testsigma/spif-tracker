@@ -1,0 +1,187 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║             FILES WERE NOT COPIED - HERE'S HOW TO FIX IT                  ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+YOU'RE SEEING OLD CODE BECAUSE FILES WEREN'T UPDATED IN GITHUB
+
+Let's fix this step by step. Do EXACTLY this:
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 1: COPY index.js (PROGRAM TIMING)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Extract the ZIP file "Complete-Code-Files.zip"
+2. Find file: index.js
+3. Open it in Notepad/TextEdit
+4. Press Ctrl+A (select all)
+5. Press Ctrl+C (copy)
+
+6. Go to your GitHub repo in browser
+7. Navigate to: src/types/index.js
+8. Click the pencil icon (Edit)
+9. Press Ctrl+A (select all existing code)
+10. Press Delete (clear everything)
+11. Press Ctrl+V (paste new code)
+12. Scroll down to verify line 2 says: export const PROGRAM_START = "2026-05-18";
+13. Scroll down to verify line 3 says: export const PROGRAM_WEEKS = 6;
+14. Click "Commit changes"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 2: COPY App.jsx (APP TITLE)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Open: App.jsx from ZIP
+2. Press Ctrl+A → Ctrl+C
+
+3. Go to GitHub: src/App.jsx
+4. Click Edit
+5. Press Ctrl+A → Delete
+6. Press Ctrl+V
+7. Search for "Customer Advocacy App" (Ctrl+F)
+8. Should find it around line 91
+9. Click "Commit changes"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 3: COPY slack.js (NEW CSM SNAPSHOT FUNCTION)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Open: slack.js from ZIP
+2. Press Ctrl+A → Ctrl+C
+
+3. Go to GitHub: src/lib/slack.js
+4. Click Edit
+5. Press Ctrl+A → Delete
+6. Press Ctrl+V
+7. Search for "buildConsolidatedSlackMessage" (Ctrl+F)
+8. Should find it around line 90
+9. Click "Commit changes"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 4: COPY Dashboard.jsx (TWO SLACK BUTTONS)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Open: Dashboard.jsx from ZIP
+2. Press Ctrl+A → Ctrl+C
+
+3. Go to GitHub: src/components/Dashboard.jsx
+4. Click Edit
+5. Press Ctrl+A → Delete
+6. Press Ctrl+V
+7. Search for "CSM Snapshot" (Ctrl+F)
+8. Should find it around line 155
+9. Click "Commit changes"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 5: COPY pdf.js (PDF TITLE)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Open: pdf.js from ZIP
+2. Press Ctrl+A → Ctrl+C
+
+3. Go to GitHub: src/lib/pdf.js
+4. Click Edit
+5. Press Ctrl+A → Delete
+6. Press Ctrl+V
+7. Search for "Customer Advocacy App" (Ctrl+F)
+8. Should find it in the title
+9. Click "Commit changes"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 6: COPY slack-snapshot.js (API - UNCHANGED)
+═══════════════════════════════════════════════════════════════════════════
+
+1. Open: slack-snapshot.js from ZIP
+2. Press Ctrl+A → Ctrl+C
+
+3. Go to GitHub: api/slack-snapshot.js
+4. Click Edit
+5. Press Ctrl+A → Delete
+6. Press Ctrl+V
+7. Click "Commit changes"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 7: WAIT FOR VERCEL TO DEPLOY
+═══════════════════════════════════════════════════════════════════════════
+
+1. Go to: https://vercel.com/dashboard
+2. Find your project
+3. Click on it
+4. Watch the "Deployments" tab
+5. Wait for green checkmark + "Ready"
+6. This takes 2-3 minutes
+7. DO NOT refresh your app until Vercel shows "Ready"
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 8: HARD REFRESH BROWSER
+═══════════════════════════════════════════════════════════════════════════
+
+After Vercel shows "Ready":
+
+1. Go to your app
+2. Press F12 (opens DevTools)
+3. Right-click the refresh button
+4. Click "Empty Cache and Hard Reload"
+
+OR
+
+1. Close browser completely
+2. Reopen browser
+3. Go to app URL
+4. Press Ctrl+Shift+R (hard refresh)
+
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 9: VERIFY IT WORKED
+═══════════════════════════════════════════════════════════════════════════
+
+You should now see:
+
+✅ App header: "🏅 Customer Advocacy App" (NOT "SPIF Tracker")
+✅ Dashboard: "Week 1 of 6" (NOT "Week 5 of 5")
+✅ Progress bar: ~17% filled (NOT 100%)
+✅ Slack section: TWO buttons (NOT one)
+   - "💬 Send to Slack"
+   - "📋 CSM Snapshot"
+
+═══════════════════════════════════════════════════════════════════════════
+
+IF YOU STILL SEE OLD CODE AFTER THIS:
+
+Check these 3 things:
+
+1. GITHUB - Did files actually change?
+   → Go to src/types/index.js on GitHub
+   → Check line 2: Should say "2026-05-18"
+   → If it still says "2026-05-01" → files weren't saved
+
+2. VERCEL - Did it deploy?
+   → Go to Vercel dashboard
+   → Latest deployment should be green + "Ready"
+   → If not → wait for it to finish
+
+3. BROWSER - Did you clear cache?
+   → Press F12 → Network tab
+   → Reload page
+   → Look at files being loaded
+   → Should see new timestamps
+
+═══════════════════════════════════════════════════════════════════════════
+
+TELL ME AFTER YOU DO THIS:
+
+1. Did you copy all 6 files? (yes/no)
+2. What does src/types/index.js line 2 say in GitHub?
+3. Is Vercel deployment green + "Ready"? (yes/no)
+4. After hard refresh, what does app header say?
+
+═══════════════════════════════════════════════════════════════════════════
