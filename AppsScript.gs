@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// SPIF Tracker v3 — Google Apps Script Backend
+// Customer Advocacy App v3 — Google Apps Script Backend
 // Schema: Date · CSM Name · Activity · Reviews · Customer Name ·
 //         Customer Email · Context · Notes · Points · Category
 // ════════════════════════════════════════════════════════════════════════
@@ -57,8 +57,8 @@ const CUSTOMER_ACTIVITIES = [
   "Customer Social Post",
 ];
 
-const PROGRAM_START = "2026-05-01";
-const PROGRAM_WEEKS = 5;
+const PROGRAM_START = "2026-05-18";
+const PROGRAM_WEEKS = 6;
 const SLACK_NAME_MAP = {
   "Mohammed Tamiz Uddin": "Tamiz",
   "Aravinda G": "Aravinda",
@@ -316,7 +316,7 @@ function buildSlackSnapshotMessage() {
     behind.length ? "🔴 Behind   — " + behind.join(", ") : null,
   ].filter(Boolean).join("\n") || "No pace data yet.";
 
-  return "📊 SPIF Tracker — Snapshot | " + dateStr + " · Week " + week + " of " + PROGRAM_WEEKS + "\n\n" +
+  return "📊 Customer Advocacy App — Snapshot | " + dateStr + " · Week " + week + " of " + PROGRAM_WEEKS + "\n\n" +
     "📊 Team Progress\n" +
     "Reviews      " + progressBar(summary.totalReviews, summary.targets.reviews) + "  " + summary.totalReviews + " / " + summary.targets.reviews + "  (" + reviewPct + "%)\n" +
     "References   " + progressBar(summary.totalRefs, summary.targets.references) + "  " + summary.totalRefs + " / " + summary.targets.references + "  (" + refPct + "%)\n" +
