@@ -1,180 +1,79 @@
-# SPIF Tracker v2 — Production Setup Guide
+# Customer Advocacy App - Implementation
 
-## What it is
-A real-time advocacy activity tracker for your CS team. CSMs log G2 reviews, case studies, and GPI activities. Points calculate automatically. A live dashboard shows the leaderboard and payout status.
+**Status:** Ready to Deploy  
+**Date:** May 19, 2026
 
----
+## 3 Features Implemented
 
-## Architecture
+1. ✅ Branding: SPIF Tracker → Customer Advocacy App
+2. ✅ Timing: May 18, 2026 for 6 weeks  
+3. ✅ New: CSM Snapshot Slack button
+
+## Quick Deploy
+
+### Copy These Files
 
 ```
-spif-v2/
-├── src/
-│   ├── types/index.js        ← Schema, validation, constants
-│   ├── lib/
-│   │   ├── api.js            ← API layer (fetch, retry, dedup)
-│   │   ├── stats.js          ← Leaderboard and breakdown calculations
-│   │   └── pdf.js            ← PDF export
-│   ├── hooks/
-│   │   ├── useSubmissions.js ← CRUD + optimistic state
-│   │   └── useToast.js       ← Notification system
-│   ├── components/
-│   │   ├── ui.jsx            ← Design system (Button, Badge, Card, etc.)
-│   │   ├── SubmissionForm.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── Leaderboard.jsx
-│   │   └── SubmissionLog.jsx
-│   ├── App.jsx               ← Shell + routing
-│   └── main.jsx
-├── AppsScript.gs             ← Google Apps Script backend
-├── package.json
-├── vite.config.js
-└── index.html
+src/types/index.js                 ← UPDATED_src_types_index.js
+src/App.jsx                        ← UPDATED_src_App.jsx
+src/lib/slack.js                   ← UPDATED_src_lib_slack.js
+src/lib/pdf.js                     ← UPDATED_src_lib_pdf.js
+src/components/Dashboard.jsx       ← UPDATED_src_components_Dashboard.jsx
+api/slack-snapshot.js              ← api_slack-snapshot.js
 ```
 
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `VITE_APPS_SCRIPT_URL` | ✅ Yes | Google Apps Script Web App URL |
-| `SLACK_WEBHOOK_URL` | For Slack button | Slack incoming webhook used by the Vercel serverless function |
-
----
-
-## STEP 1 — Google Sheet Setup (3 min)
-
-1. Go to **sheets.google.com** → create a new sheet
-2. Name it: **SPIF Tracker**
-3. Rename the bottom tab to: **Submissions** (capital S, exact spelling)
-4. Row 1 headers (columns A–G):
-   - `Date` · `CSM Name` · `Tier` · `Activity` · `No. of Reviews` · `Notes` · `Points`
-
-> The Apps Script will also auto-create these headers if missing.
-
----
-
-## STEP 2 — Deploy Apps Script (5 min)
-
-1. In your Google Sheet: **Extensions → Apps Script**
-2. Delete all existing code
-3. Copy the entire contents of `AppsScript.gs` and paste it
-4. Click **Save** (💾) — name it: `SPIF Tracker Backend`
-5. Click **Deploy → New deployment**
-6. Click gear icon ⚙️ → select **Web app**
-7. Set:
-   - Execute as: **Me**
-   - Who has access: **Anyone**
-8. Click **Deploy** → authorize when prompted
-9. **Copy the Web App URL** (starts with `https://script.google.com/macros/s/...`)
-10. Paste it in a safe place
-
-**Verify it works:** Open the URL in your browser. You should see:
-```json
-{"ok":true,"submissions":[]}
-```
-
----
-
-## STEP 3 — Deploy Frontend to Vercel (5 min)
-
-### Option A: GitHub → Vercel (recommended)
-
-1. Push this folder to a GitHub repository
-2. Go to **vercel.com** → New Project → Import from GitHub
-3. Select the repository
-4. Click **Deploy**
-
-### Option B: Vercel CLI
+### Push to Git
 
 ```bash
-npm i -g vercel
-vercel
+git add . && git commit -m "feat: update app" && git push origin main
 ```
 
-### Add environment variable
+Vercel auto-deploys ✓
 
-1. Vercel project → **Settings → Environment Variables**
-2. Add:
-   - **Name:** `VITE_APPS_SCRIPT_URL`
-   - **Value:** Your Web App URL from Step 2
-   - **Environments:** Production, Preview, Development ✅
-3. Add:
-   - **Name:** `SLACK_WEBHOOK_URL`
-   - **Value:** Your Slack incoming webhook URL
-   - **Environments:** Production, Preview, Development ✅
-4. Click **Save**
-5. Go to **Deployments → Redeploy**
+### Optional: Update Apps Script
 
----
+Copy `UPDATED_AppsScript.gs` to Google Apps Script editor → Deploy
 
-## STEP 4 — Verify Everything Works
+## Changes Summary
 
-Open your Vercel URL and test:
+| Item | Change |
+|------|--------|
+| App Title | SPIF Tracker → Customer Advocacy App |
+| Program | May 1 (5 wks) → May 18 (6 wks) |
+| Buttons | 1 → 2 (added CSM Snapshot) |
+| API | Unchanged (/api/slack-snapshot) |
 
-1. **Submit** — log a test activity → check Google Sheet row was created ✅
-2. **Dashboard** — verify stats update ✅
-3. **Leaderboard** — verify CSM shows points ✅
-4. **All Submissions** → **Edit** → change a field → Save → check Sheet row updated (not duplicated) ✅
-5. **All Submissions** → **Delete** → confirm → check Sheet row removed ✅
-6. **PDF Export** → download and verify all data present ✅
+## File Structure
 
----
+```
+src/
+├── types/index.js ............. Program timing
+├── App.jsx .................... App title
+├── lib/
+│   ├── slack.js ............... Message builders (+ new CSM snapshot)
+│   └── pdf.js ................. PDF title
+└── components/
+    └── Dashboard.jsx .......... Two Slack buttons
 
-## CRUD Flow
+api/
+└── slack-snapshot.js .......... Vercel function (unchanged)
 
-| Operation | Frontend | Apps Script | Sheet |
-|---|---|---|---|
-| Create | `useSubmissions.create()` → optimistic add | `doPost()` → `appendRow()` | New row added |
-| Read | `useSubmissions` polls every 30s | `doGet()` → reads all rows | Rows returned with `rowIndex` |
-| Update | `useSubmissions.update()` → optimistic update | `doPut()` → `setValues()` on specific row | Exact row overwritten |
-| Delete | `useSubmissions.remove()` → optimistic remove | `doDelete()` → `deleteRow()` | Row deleted (rows shift up) |
+AppsScript.gs .................. Backend (optional update)
+```
 
-> **Important:** After any write operation, the frontend re-fetches after 1.5 seconds to get fresh `rowIndex` values. This prevents stale row references from causing incorrect updates/deletes.
+## Verify After Deploy
 
----
+- ✓ Title: "Customer Advocacy App"
+- ✓ Week: "Week 1 of 6"
+- ✓ Two Slack buttons visible
+- ✓ Both buttons send messages
 
-## Activity Points Reference
+## Notes
 
-| Activity | Points | Per Review? |
-|---|---|---|
-| G2 Review — SMB | 10 pts | ✅ × reviews |
-| G2 Review — Enterprise | 20 pts | ✅ × reviews |
-| Case Study | 20 pts | ❌ flat |
-| GPI | 15 pts | ❌ flat |
+- Zero breaking changes
+- 100% backward compatible  
+- API/Slack flow unchanged
+- Ready for production
 
-**Thresholds:**
-- 50 pts → Payout unlocked
-- 200 pts → Certification bonus
+**That's it! Deploy and enjoy.** 🎉
 
----
-
-## Data Hygiene
-
-- All inputs validated on frontend **and** backend
-- Backend rejects invalid CSM names, tiers, and activities
-- Stale `rowIndex` guard: if a row appears empty on update/delete, the backend returns an error
-- Frontend re-fetches after every write to refresh row indices
-- Duplicate submission prevention: in-flight request dedup via `inFlight` Set
-- Notes capped at 500 chars on both frontend and backend
-- Points recalculated server-side from activity + reviews (not trusted from client)
-
----
-
-## Troubleshooting
-
-**"Apps Script URL not configured"**
-→ Add `VITE_APPS_SCRIPT_URL` to Vercel env vars and redeploy
-
-**Edit/delete works in UI but Sheet doesn't update**
-→ Your Apps Script deployment may be outdated. Redeploy it (Deploy → Manage Deployments → delete → New Deployment)
-
-**"Row X does not exist" error**
-→ The app has stale row indices. Click ↺ Refresh to reload, then retry
-
-**"Sheet not found" error in Apps Script**
-→ Your sheet tab is not named exactly `Submissions` (capital S)
-
-**No data shows after submit**
-→ Wait 30 seconds (auto-refresh) or click ↺ Refresh manually
