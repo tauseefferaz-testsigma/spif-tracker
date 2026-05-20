@@ -34,7 +34,7 @@ const VALID_CSM_NAMES = [
   "Subhopriyo Sen",
   "sakshi.bagri",
   "Rama Varma",
-  "Mohammed Tamiz",
+  "Mohammed Tamiz Uddin",
   "Aravinda G",
   "Arun S",
   "Varun Thakur",
