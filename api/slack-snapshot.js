@@ -1,36 +1,43 @@
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
-
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== "POST") {
+    res.status(405).json({ ok: false, error: "Method not allowed." });
+    return;
+  }
+
+  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+  if (!webhookUrl) {
+    res.status(500).json({ ok: false, error: "SLACK_WEBHOOK_URL is not configured in Vercel." });
+    return;
+  }
+
+  const text = String(req.body?.text || "").trim();
+  if (!text) {
+    res.status(400).json({ ok: false, error: "Slack message text is empty." });
+    return;
   }
 
   try {
-    const { message } = req.body
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ text }),
+    });
 
-    if (!message) {
-      return res.status(400).json({ error: 'No message provided' })
-    }
-
-    const response = await fetch(SLACK_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: message })
-    })
-
+    const responseText = await response.text();
     if (!response.ok) {
-      throw new Error('Failed to send to Slack')
+      res.status(response.status).json({
+        ok: false,
+        error: `Slack returned HTTP ${response.status}.`,
+        details: responseText,
+      });
+      return;
     }
 
-    return res.json({
-      status: 'success',
-      message: 'Message sent to Slack'
-    })
+    res.status(200).json({ ok: true, message: "Sent to Slack." });
   } catch (error) {
-    console.error('Error:', error)
-    return res.status(500).json({
-      error: 'Internal server error',
-      details: error.message
-    })
+    res.status(500).json({
+      ok: false,
+      error: error instanceof Error ? error.message : "Unexpected Slack error.",
+    });
   }
 }
