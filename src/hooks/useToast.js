@@ -1,24 +1,12 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react'
 
 export function useToast() {
-  const [toasts, setToasts] = useState([]);
-  const timerRefs = useRef({});
+  const [toast, setToast] = useState(null)
 
-  const dismiss = useCallback((id) => {
-    clearTimeout(timerRefs.current[id]);
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }, [])
 
-  const show = useCallback((message, type = 'success', duration = 4000) => {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    setToasts(prev => [...prev.slice(-3), { id, message, type }]); // max 4 toasts
-    timerRefs.current[id] = setTimeout(() => dismiss(id), duration);
-    return id;
-  }, [dismiss]);
-
-  const success = useCallback((msg) => show(msg, 'success'), [show]);
-  const error   = useCallback((msg) => show(msg, 'error', 6000), [show]);
-  const info    = useCallback((msg) => show(msg, 'info'), [show]);
-
-  return { toasts, success, error, info, dismiss };
+  return { toast, showToast }
 }

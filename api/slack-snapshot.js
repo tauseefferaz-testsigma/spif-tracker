@@ -1,43 +1,36 @@
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.status(405).json({ ok: false, error: "Method not allowed." });
-    return;
-  }
-
-  const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) {
-    res.status(500).json({ ok: false, error: "SLACK_WEBHOOK_URL is not configured in Vercel." });
-    return;
-  }
-
-  const text = String(req.body?.text || "").trim();
-  if (!text) {
-    res.status(400).json({ ok: false, error: "Slack message text is empty." });
-    return;
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    const response = await fetch(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ text }),
-    });
+    const { message } = req.body
 
-    const responseText = await response.text();
-    if (!response.ok) {
-      res.status(response.status).json({
-        ok: false,
-        error: `Slack returned HTTP ${response.status}.`,
-        details: responseText,
-      });
-      return;
+    if (!message) {
+      return res.status(400).json({ error: 'No message provided' })
     }
 
-    res.status(200).json({ ok: true, message: "Sent to Slack." });
+    const response = await fetch(SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: message })
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to send to Slack')
+    }
+
+    return res.json({
+      status: 'success',
+      message: 'Message sent to Slack'
+    })
   } catch (error) {
-    res.status(500).json({
-      ok: false,
-      error: error instanceof Error ? error.message : "Unexpected Slack error.",
-    });
+    console.error('Error:', error)
+    return res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    })
   }
 }
