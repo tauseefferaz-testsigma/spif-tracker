@@ -159,6 +159,11 @@ export default function Dashboard({ submissions }) {
           <Button variant="secondary" onClick={() => exportReport(submissions)}>
             ⬇ Download PDF
           </Button>
+          {typeof window !== 'undefined' && (
+            <Button variant="secondary" onClick={() => window.__generateSnapshot?.()}>
+              📸 Generate Snapshot
+            </Button>
+          )}
         </div>
       </div>
 

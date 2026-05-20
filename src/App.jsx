@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useSubmissions } from './hooks/useSubmissions.js';
 import { useToast }       from './hooks/useToast.js';
+import { useSnapshot }    from './hooks/useSnapshot.js';
 import { isConfigured }   from './lib/api.js';
 import { colors }         from './components/ui.jsx';
 import SubmissionForm  from './components/SubmissionForm.jsx';
 import Dashboard       from './components/Dashboard.jsx';
 import Leaderboard     from './components/Leaderboard.jsx';
 import SubmissionLog   from './components/SubmissionLog.jsx';
+import SnapshotViewer  from './components/SnapshotViewer.jsx';
 import { ToastContainer } from './components/ui.jsx';
 
 const TABS = [
@@ -20,10 +22,16 @@ export default function App() {
   const [tab,        setTab]        = useState('submit');
   const [editTarget, setEditTarget] = useState(null);
   const { toasts, success, error: toastError, dismiss } = useToast();
+  const { snapshotVisible, snapshotData, openSnapshot, closeSnapshot, handleSnapshotGenerated } = useSnapshot();
   const {
     submissions, loading, refreshing, error: dataError,
     lastSynced, reload, create, update, remove,
   } = useSubmissions();
+
+  // Expose snapshot function globally for Dashboard button
+  if (typeof window !== 'undefined') {
+    window.__generateSnapshot = openSnapshot;
+  }
 
   // ── Not configured guard
   if (!isConfigured()) {
@@ -130,6 +138,15 @@ export default function App() {
 
       {/* Content */}
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 16px' }}>
+
+        {/* Snapshot Modal */}
+        {snapshotVisible && (
+          <SnapshotViewer
+            submissions={submissions}
+            onClose={closeSnapshot}
+            onSnapshot={handleSnapshotGenerated}
+          />
+        )}
 
         {/* Data error banner */}
         {dataError && (
