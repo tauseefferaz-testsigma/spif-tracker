@@ -1,90 +1,136 @@
-export function buildConsolidatedSlackMessage(submissions) {
-  const week = currentWeekNumber();
+import {
+  currentWeekNumber, PROGRAM_WEEKS, getPaceStatus,
+} from "../types/index.js";
+import { buildTeamSummary, buildCsmStats } from "./stats.js";
 
-  // Build + sort leaderboard
-  const stats = buildCsmStats(submissions)
-    .map((csm) => ({
-      ...csm,
-      score:
-        (csm.reviews * 3) +
-        (csm.references * 5) +
-        (csm.stories * 4),
-    }))
-    .sort((a, b) => b.score - a.score);
+const SLACK_API_URL = "/api/slack-snapshot";
 
+export function isSlackConfigured() {
+  return true;
+}
+
+function progressBar(actual, target, length = 10) {
+  if (!target) return "";
+  const filled = Math.round(Math.min(1, actual / target) * length);
+  return "▓".repeat(filled) + "░".repeat(length - filled);
+}
+
+function paceEmoji(status) {
+  if (status === "ahead")    return ":large_green_circle:";
+  if (status === "on_track") return ":large_yellow_circle:";
+  if (status === "behind")   return ":red_circle:";
+  return ":white_circle:";
+}
+
+const SLACK_NAMES = {
+  "Mohammed Tamiz Uddin": "Tamiz",
+  "Aravinda G": "Aravinda",
+  "Subhopriyo Sen": "Subho",
+  "sakshi.bagri": "Sakshi",
+  "Rama Varma": "Ram",
+  "Arun S": "Arun",
+  "Varun Thakur": "Varun",
+  "Shabrish BM": "Shabrish",
+  "Tauseef Feraz": "Tauseef",
+  "Aarathy Sundaresan": "Aarathy",
+};
+
+function shortName(name) {
+  return SLACK_NAMES[name] || name;
+}
+
+function padRight(value, width) {
+  return String(value).padEnd(width, " ");
+}
+
+export function buildSlackMessage(submissions) {
+  const week    = currentWeekNumber();
   const summary = buildTeamSummary(submissions);
+  const lb      = buildCsmStats(submissions);
 
-  const medals = [
-    ":first_place_medal:",
-    ":second_place_medal:",
-    ":third_place_medal:",
-  ];
+  const today   = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const reviewPct = Math.round((summary.totalReviews / summary.targets.reviews) * 100) || 0;
+  const refPct    = Math.round((summary.totalRefs    / summary.targets.references) * 100) || 0;
+  const storyPct  = Math.round((summary.totalStories / summary.targets.stories) * 100) || 0;
 
-  let message = "";
+  const medals = [":one:",":two:",":three:",":four:",":five:"];
+  const topRows = lb.slice(0, 5);
+  const lbLines = topRows.map((c, i) => {
+    const pace = c.targets ? getPaceStatus(c.reviews, c.targets.reviews) : null;
+    return `${medals[i]} ${padRight(shortName(c.name), 9)} — ${c.pts} pts  ${pace ? paceEmoji(pace) : ":white_circle:"}`;
+  }).join("\n");
+  const leaderboardBlock = lb.length > 5 ? `${lbLines}\n...` : lbLines;
 
-  // Header
-  message += `:sports_medal: *Customer Advocacy Leaderboard*\n`;
-  message += `*Week ${week} of ${PROGRAM_WEEKS}*\n\n`;
+  const withTargets = lb.filter(c => c.targets);
+  const ahead   = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "ahead").map(c => shortName(c.name));
+  const onTrack = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "on_track").map(c => shortName(c.name));
+  const behind  = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "behind").map(c => shortName(c.name));
 
-  // Leaderboard
-  stats.forEach((csm, index) => {
-    const medal = medals[index] || ":small_blue_diamond:";
+  const paceLines = [
+    ahead.length   ? `:large_green_circle: Ahead    — ${ahead.join(", ")}`   : null,
+    onTrack.length ? `:large_yellow_circle: On Track — ${onTrack.join(", ")}` : null,
+    behind.length  ? `:red_circle: Behind   — ${behind.join(", ")}`  : null,
+  ].filter(Boolean).join("\n") || "No pace data yet.";
 
-    message += `${medal} *${index + 1}. ${csm.name}*\n`;
-    message += `   :memo: ${csm.reviews} Reviews`;
-    message += `   |   :clipboard: ${csm.references} References`;
-    message += `   |   :book: ${csm.stories} Stories`;
-    message += `   |   :star: ${csm.score} pts\n\n`;
-  });
+  return `:bar_chart: Customer Advocacy App — Snapshot | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}
 
-  // Divider
-  message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+:bar_chart: Team Progress
+Reviews      ${progressBar(summary.totalReviews, summary.targets.reviews)}  ${summary.totalReviews} / ${summary.targets.reviews}  (${reviewPct}%)
+References   ${progressBar(summary.totalRefs, summary.targets.references)}  ${summary.totalRefs} / ${summary.targets.references}  (${refPct}%)
+Stories      ${progressBar(summary.totalStories, summary.targets.stories)}  ${summary.totalStories} / ${summary.targets.stories}  (${storyPct}%)
 
-  // Team Target
-  message += `:fire: *Team Target*\n`;
-  message += `• Reviews → ${summary.targets.reviews}\n`;
-  message += `• References → ${summary.targets.references}\n`;
-  message += `• Stories → ${summary.targets.stories}\n\n`;
+:trophy: Leaderboard
+${leaderboardBlock}
 
-  // Current Totals
-  message += `:bar_chart: *Current Totals*\n`;
-  message += `• Reviews → ${summary.totalReviews}\n`;
-  message += `• References → ${summary.totalRefs}\n`;
-  message += `• Stories → ${summary.totalStories}\n\n`;
+:zap: Pace Check
+${paceLines}`;
+}
 
-  // Progress Calculation
-  const totalCompleted =
-    summary.totalReviews +
-    summary.totalRefs +
-    summary.totalStories;
+export function buildConsolidatedSlackMessage(submissions) {
+  const week    = currentWeekNumber();
+  const stats   = buildCsmStats(submissions);
+  const today   = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-  const totalTarget =
-    summary.targets.reviews +
-    summary.targets.references +
-    summary.targets.stories;
+  let message = `:bar_chart: Customer Advocacy App — CSM Snapshot | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}\n\n`;
 
-  const progress =
-    Math.round((totalCompleted / totalTarget) * 100) || 0;
+  message += `Name                        Reviews      References    Stories\n`;
+  message += `─────────────────────────────────────────────────────────────\n\n`;
 
-  // Progress Bar
-  const filledBars = Math.round(progress / 10);
-  const emptyBars = 10 - filledBars;
+  for (const csm of stats) {
+    const name = csm.name.padEnd(26, " ");
 
-  const progressBar =
-    "█".repeat(filledBars) +
-    "░".repeat(emptyBars);
-
-  message += `:dart: *Current Progress*\n`;
-  message += `${progressBar} ${progress}% Complete\n\n`;
-
-  // Status Indicator
-  if (progress >= 75) {
-    message += `:large_green_circle: Team is on track`;
-  } else if (progress >= 40) {
-    message += `:large_yellow_circle: Team is making progress`;
-  } else {
-    message += `:red_circle: Team needs momentum`;
+    if (!csm.targets) {
+      message += `${name}:memo: ${csm.reviews}       :clipboard: ${csm.references}           :book: ${csm.stories}\n`;
+    } else {
+      message += `${name}:memo: ${csm.reviews}/${csm.targets.reviews}       :clipboard: ${csm.references}/${csm.targets.references}         :book: ${csm.stories}/${csm.targets.stories}\n`;
+    }
   }
 
   return message;
+}
+
+export async function sendSlackUpdate(submissions, messageFormat = "team") {
+  const text = messageFormat === "csm"
+    ? buildConsolidatedSlackMessage(submissions)
+    : buildSlackMessage(submissions);
+  const response = await fetch(SLACK_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify({ text }),
+  });
+
+  let result = null;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("Slack endpoint returned an unreadable response.");
+  }
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.error || "Slack send failed.");
+  }
+
+  return { ok: true, text, message: result.message || "Sent to Slack." };
 }
