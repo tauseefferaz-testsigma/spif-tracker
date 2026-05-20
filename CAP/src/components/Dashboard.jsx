@@ -121,7 +121,9 @@ export default function Dashboard({ submissions }) {
     setSlackMsg(null);
     try {
       const result = await sendSlackUpdate(submissions, format);
-      const formatLabel = format === "csm" ? "CSM snapshot" : "Team summary";
+      let formatLabel = "Team summary";
+      if (format === "csm") formatLabel = "CSM snapshot";
+      if (format === "snapshot") formatLabel = "Weekly snapshot";
       setSlackMsg({ ok: true, text: `${formatLabel} sent to Slack.` });
     } catch (err) {
       setSlackMsg({ ok: false, text: err.message });
@@ -159,11 +161,9 @@ export default function Dashboard({ submissions }) {
           <Button variant="secondary" onClick={() => exportReport(submissions)}>
             ⬇ Download PDF
           </Button>
-          {typeof window !== 'undefined' && (
-            <Button variant="secondary" onClick={() => window.__generateSnapshot?.()}>
-              📸 Generate Snapshot
-            </Button>
-          )}
+          <Button variant="secondary" onClick={() => handleSendSlack("snapshot")} disabled={slacking}>
+            {slacking ? "Sending…" : "📸 Send Snapshot to Slack"}
+          </Button>
         </div>
       </div>
 
