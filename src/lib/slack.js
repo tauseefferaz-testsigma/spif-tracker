@@ -94,14 +94,17 @@ export function buildConsolidatedSlackMessage(submissions) {
   const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   let message = `📊 Customer Advocacy App — CSM Snapshot | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}\n\n`;
+  
+  message += `Name                        Reviews      References    Stories\n`;
+  message += `─────────────────────────────────────────────────────────────\n\n`;
 
   for (const csm of stats) {
+    const name = csm.name.padEnd(26, " ");
+    
     if (!csm.targets) {
-      // CSMs without targets (show counts without targets)
-      message += `${padRight(csm.name, 24)}  Reviews: ${csm.reviews}  |  References: ${csm.references}  |  Stories: ${csm.stories}\n`;
+      message += `${name}📝 ${csm.reviews}       📋 ${csm.references}           📖 ${csm.stories}\n`;
     } else {
-      // CSMs with targets (show counts / targets)
-      message += `${padRight(csm.name, 24)}  Reviews: ${csm.reviews} / ${csm.targets.reviews}  |  References: ${csm.references} / ${csm.targets.references}  |  Stories: ${csm.stories} / ${csm.targets.stories}\n`;
+      message += `${name}📝 ${csm.reviews}/${csm.targets.reviews}       📋 ${csm.references}/${csm.targets.references}         📖 ${csm.stories}/${csm.targets.stories}\n`;
     }
   }
 

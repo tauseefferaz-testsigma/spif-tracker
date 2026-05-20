@@ -467,3 +467,173 @@ function createSlackScheduleTriggers() {
     .create();
   return jsonOut({ ok: true, message: "Created Monday 9 AM and Friday 5 PM triggers in the script timezone." });
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// AUTOMATED SLACK MESSAGES - Friday CSM Snapshot & Monday Summary
+// ═══════════════════════════════════════════════════════════════════
+
+const SLACK_WEBHOOK_URL = PropertiesService.getScriptProperties().getProperty('SLACK_WEBHOOK_URL');
+
+function sendFridayCSMSnapshot() {
+  const today = new Date();
+  const day = today.getDay();
+  
+  // Only run on Friday (5) at 10 AM
+  if (day !== 5) return;
+  
+  try {
+    const submissions = getSubmissionsFromSheet();
+    const message = buildCSMSnapshotMessage(submissions);
+    
+    const payload = {
+      text: message
+    };
+    
+    const options = {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(SLACK_WEBHOOK_URL, options);
+    Logger.log("Friday CSM Snapshot sent: " + response.getResponseCode());
+  } catch (e) {
+    Logger.log("Error sending Friday CSM Snapshot: " + e);
+  }
+}
+
+function sendMondayTeamSummary() {
+  const today = new Date();
+  const day = today.getDay();
+  
+  // Only run on Monday (1) at 10 AM
+  if (day !== 1) return;
+  
+  try {
+    const submissions = getSubmissionsFromSheet();
+    const message = buildTeamSummaryMessage(submissions);
+    
+    const payload = {
+      text: message
+    };
+    
+    const options = {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+    
+    const response = UrlFetchApp.fetch(SLACK_WEBHOOK_URL, options);
+    Logger.log("Monday Team Summary sent: " + response.getResponseCode());
+  } catch (e) {
+    Logger.log("Error sending Monday Team Summary: " + e);
+  }
+}
+
+function buildCSMSnapshotMessage(submissions) {
+  const week = currentWeekNumber();
+  const stats = buildCsmStats(submissions);
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  let message = `📊 Customer Advocacy App — CSM Snapshot | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}\n\n`;
+  
+  message += `Name                        Reviews      References    Stories\n`;
+  message += `─────────────────────────────────────────────────────────────\n\n`;
+
+  for (const csm of stats) {
+    const name = csm.name.padEnd(26, " ");
+    
+    if (!csm.targets) {
+      message += `${name}📝 ${csm.reviews}       📋 ${csm.references}           📖 ${csm.stories}\n`;
+    } else {
+      message += `${name}📝 ${csm.reviews}/${csm.targets.reviews}       📋 ${csm.references}/${csm.targets.references}         📖 ${csm.stories}/${csm.targets.stories}\n`;
+    }
+  }
+
+  return message;
+}
+
+function buildTeamSummaryMessage(submissions) {
+  const week = currentWeekNumber();
+  const summary = buildTeamSummary(submissions);
+  const lb = buildCsmStats(submissions);
+  const today = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  
+  const reviewPct = Math.round((summary.totalReviews / summary.targets.reviews) * 100) || 0;
+  const refPct = Math.round((summary.totalRefs / summary.targets.references) * 100) || 0;
+  const storyPct = Math.round((summary.totalStories / summary.targets.stories) * 100) || 0;
+
+  const medals = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣"];
+  const topRows = lb.slice(0, 5);
+  const lbLines = topRows.map((c, i) => {
+    const pace = c.targets ? getPaceStatus(c.reviews, c.targets.reviews) : null;
+    const paceEmoji = pace === "ahead" ? "🟢" : pace === "behind" ? "🔴" : "🟡";
+    return `${medals[i]} ${c.name.substring(0, 10).padEnd(10, " ")} — ${c.pts} pts ${paceEmoji}`;
+  }).join("\n");
+  
+  const leaderboardBlock = lb.length > 5 ? `${lbLines}\n...` : lbLines;
+
+  const withTargets = lb.filter(c => c.targets);
+  const ahead = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "ahead").map(c => c.name.split(" ")[0]);
+  const behind = withTargets.filter(c => getPaceStatus(c.reviews, c.targets.reviews) === "behind").map(c => c.name.split(" ")[0]);
+
+  const paceLines = [
+    ahead.length ? `🟢 Ahead — ${ahead.join(", ")}` : null,
+    behind.length ? `🔴 Behind — ${behind.join(", ")}` : null,
+  ].filter(Boolean).join("\n") || "No pace data yet.";
+
+  return `📊 Customer Advocacy App — Snapshot | ${dateStr} · Week ${week} of ${PROGRAM_WEEKS}
+
+Team Progress
+Reviews      ${progressBar(summary.totalReviews, summary.targets.reviews)}  ${summary.totalReviews} / ${summary.targets.reviews}  (${reviewPct}%)
+References   ${progressBar(summary.totalRefs, summary.targets.references)}  ${summary.totalRefs} / ${summary.targets.references}  (${refPct}%)
+Stories      ${progressBar(summary.totalStories, summary.targets.stories)}  ${summary.totalStories} / ${summary.targets.stories}  (${storyPct}%)
+
+🏆 Leaderboard
+${leaderboardBlock}
+
+⚡ Pace Check
+${paceLines}`;
+}
+
+function progressBar(actual, target, length = 10) {
+  if (!target) return "";
+  const filled = Math.round(Math.min(1, actual / target) * length);
+  return "▓".repeat(filled) + "░".repeat(length - filled);
+}
+
+function getPaceStatus(actual, target) {
+  if (!target) return null;
+  const expected = (currentWeekNumber() / PROGRAM_WEEKS) * target;
+  if (expected === 0) return "on_track";
+  const ratio = actual / expected;
+  if (ratio >= 1.1) return "ahead";
+  if (ratio >= 0.85) return "on_track";
+  return "behind";
+}
+
+function setUpAutomatedTriggers() {
+  // This function creates the triggers
+  // Run this ONCE in AppsScript editor to set up automation
+  
+  // Friday 10 AM trigger
+  ScriptApp.newTrigger('sendFridayCSMSnapshot')
+    .timeBased()
+    .atHour(10)
+    .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+    .create();
+  
+  // Monday 10 AM trigger
+  ScriptApp.newTrigger('sendMondayTeamSummary')
+    .timeBased()
+    .atHour(10)
+    .onWeekDay(ScriptApp.WeekDay.MONDAY)
+    .create();
+  
+  Logger.log("Automated triggers set up successfully!");
+}
