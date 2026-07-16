@@ -1,13 +1,13 @@
 // ════════════════════════════════════════════════════════════════════════
 // Customer Advocacy App v3 — Google Apps Script Backend
 // Schema: Date · CSM Name · Activity · Reviews · Customer Name ·
-//         Customer Email · Context · Notes · Points · Category
+//         Customer Email · Context · Notes · Points · Category · URL
 // ════════════════════════════════════════════════════════════════════════
 
 const SHEET_NAME = "Submissions";
 const HEADERS = [
   "Date","CSM Name","Activity","Reviews",
-  "Customer Name","Customer Email","Context","Notes","Points","Category"
+  "Customer Name","Customer Email","Context","Notes","Points","Category","URL"
 ];
 
 function jsonOut(obj) {
@@ -26,6 +26,15 @@ function ensureHeaders(sheet) {
   if (!row1.some(v => String(v).trim() !== "")) {
     sheet.getRange(1,1,1,HEADERS.length).setValues([HEADERS]);
     sheet.getRange(1,1,1,HEADERS.length).setFontWeight("bold");
+    return;
+  }
+  // Existing sheet: fill any missing trailing header (e.g. new URL column)
+  // without disturbing existing header cells.
+  for (let c = 0; c < HEADERS.length; c++) {
+    const cell = sheet.getRange(1, c + 1);
+    if (String(cell.getValue()).trim() === "") {
+      cell.setValue(HEADERS[c]).setFontWeight("bold");
+    }
   }
 }
 
@@ -56,6 +65,18 @@ const CUSTOMER_ACTIVITIES = [
   "Success Story",
   "Customer Social Post",
 ];
+// Activities that require an approved/published URL (mirrors showUrl on the frontend)
+const URL_ACTIVITIES = [
+  "G2 Review",
+  "Gartner Peer Insights Review",
+  "Reference Customer",
+  "Success Story",
+  "Customer Social Post",
+];
+
+function isValidUrl(value) {
+  return /^https?:\/\/[^\s.]+\.[^\s]+$/i.test(String(value || "").trim());
+}
 
 const PROGRAM_START = "2026-05-18";
 const PROGRAM_WEEKS = 6;
@@ -113,6 +134,11 @@ function validatePayload(p) {
       }
     }
   }
+  if (URL_ACTIVITIES.includes(p.activity)) {
+    const url = String(p.url || "").trim();
+    if (!url) return "An approved/published URL is required.";
+    if (!isValidUrl(url)) return "Invalid URL. Must start with http:// or https://";
+  }
   return null;
 }
 
@@ -150,6 +176,7 @@ function rowFromPayload(p) {
     String(p.notes   || "").trim().slice(0,500),
     Number(p.points),
     String(p.category || "").trim(),
+    String(p.url || "").trim(),
   ];
 }
 
@@ -239,6 +266,7 @@ function getSubmissionsFromSheet() {
       notes: String(row[7] || "").trim(),
       points: Number(row[8]) || 0,
       category: String(row[9] || "").trim(),
+      url: String(row[10] || "").trim(),
     });
   }
 

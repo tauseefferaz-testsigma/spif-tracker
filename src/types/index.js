@@ -51,12 +51,12 @@ export const TEAM_TARGETS = CSMS.reduce(
 
 // ─── ACTIVITIES ───────────────────────────────────────────────────────────────
 export const ACTIVITIES = [
-  { id: "g2",      label: "G2 Review",                    category: "Reviews",           points: 2,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
-  { id: "gartner", label: "Gartner Peer Insights Review", category: "Reviews",           points: 3,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
-  { id: "ref",     label: "Reference Customer",           category: "Customer Advocacy", points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
-  { id: "story",   label: "Success Story",                category: "Customer Advocacy", points: 5,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: true,  contextLabel: "Story URL or Title", contextPlaceholder: "e.g. acme.com/story" },
-  { id: "webinar", label: "Webinar Speaker",              category: "Recognition",       points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: false, showContext: true,  contextLabel: "Webinar Name",       contextPlaceholder: "e.g. SaaStr 2026" },
-  { id: "social",  label: "Customer Social Post",         category: "Recognition",       points: 2,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showContext: true,  contextLabel: "Post URL",           contextPlaceholder: "e.g. linkedin.com/posts/xyz" },
+  { id: "g2",      label: "G2 Review",                    category: "Reviews",           points: 2,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showUrl: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
+  { id: "gartner", label: "Gartner Peer Insights Review", category: "Reviews",           points: 3,  perReview: true,  showCount: true,  countLabel: "No. of Reviews", showCustomer: true,  showUrl: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
+  { id: "ref",     label: "Reference Customer",           category: "Customer Advocacy", points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showUrl: true,  showContext: false, contextLabel: null,               contextPlaceholder: null },
+  { id: "story",   label: "Success Story",                category: "Customer Advocacy", points: 5,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showUrl: true,  showContext: true,  contextLabel: "Story URL or Title", contextPlaceholder: "e.g. acme.com/story" },
+  { id: "webinar", label: "Webinar Speaker",              category: "Recognition",       points: 3,  perReview: false, showCount: false, countLabel: null,             showCustomer: false, showUrl: false, showContext: true,  contextLabel: "Webinar Name",       contextPlaceholder: "e.g. SaaStr 2026" },
+  { id: "social",  label: "Customer Social Post",         category: "Recognition",       points: 2,  perReview: false, showCount: false, countLabel: null,             showCustomer: true,  showUrl: true,  showContext: true,  contextLabel: "Post URL",           contextPlaceholder: "e.g. linkedin.com/posts/xyz" },
 ];
 
 export const ACTIVITY_CATEGORIES = ["Reviews", "Customer Advocacy", "Recognition"];
@@ -66,6 +66,11 @@ export function getActivity(label) {
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const URL_REGEX = /^https?:\/\/[^\s.]+\.[^\s]+$/i;
+
+export function isValidUrl(value) {
+  return URL_REGEX.test(String(value || "").trim());
+}
 
 export function parseEmailList(value) {
   return String(value || "")
@@ -145,6 +150,12 @@ export function validateSubmission(data) {
       }
     }
   }
+  if (activity?.showUrl) {
+    if (!data.url?.trim())
+      errors.url = "Enter the approved/published link.";
+    else if (!isValidUrl(data.url))
+      errors.url = "Enter a valid link starting with http:// or https://";
+  }
   if (activity?.showContext) {
     if (!data.context?.trim() || data.context.trim().length < 2)
       errors.context = `Enter the ${activity.contextLabel?.toLowerCase() || "required field"}.`;
@@ -167,6 +178,7 @@ export function sanitizeSubmission(raw) {
     customerName:  activity?.showCustomer ? String(raw.customerName || "").trim() : "",
     customerEmail: activity?.showCustomer ? normalizedEmails : "",
     context:       activity?.showContext  ? String(raw.context || "").trim() : "",
+    url:           activity?.showUrl      ? String(raw.url || "").trim() : "",
     notes:         String(raw.notes || "").trim().slice(0, 500),
     points:        calcPoints(raw.activity, raw.reviews),
   };

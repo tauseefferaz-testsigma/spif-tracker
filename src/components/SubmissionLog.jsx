@@ -21,7 +21,7 @@ export default function SubmissionLog({ submissions, onEdit, onDelete }) {
       .filter(r => filterCat === "All" || r.category === filterCat)
       .filter(r => {
         if (!q) return true;
-        return [r.csm, r.activity, r.customerName, r.customerEmail, r.context, r.notes || ""]
+        return [r.csm, r.activity, r.customerName, r.customerEmail, r.url || "", r.context, r.notes || ""]
           .some(v => String(v || "").toLowerCase().includes(q));
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -79,6 +79,12 @@ export default function SubmissionLog({ submissions, onEdit, onDelete }) {
                           {parseEmailList(s.customerEmail).join("\n")}
                         </span>
                       )}
+                    </div>
+                  )}
+                  {s.url && (
+                    <div style={{ fontSize:12, marginTop:2 }}>
+                      🔗 <a href={s.url} target="_blank" rel="noopener noreferrer"
+                        style={{ color:colors.accent, wordBreak:"break-all" }}>{s.url}</a>
                     </div>
                   )}
                   {s.context && <div style={{ fontSize:12, color:colors.muted, marginTop:2 }}>🔗 {s.context}</div>}

@@ -6,10 +6,11 @@ import {
   validateSubmission,
   calcPoints,
   getEmailValidationDetails,
+  isValidUrl,
 } from "../types/index.js";
 import { Card, FormField, Spinner, colors } from "./ui.jsx";
 
-const EMPTY = { csm: "", activity: "", reviews: "", customerName: "", customerEmail: "", context: "", notes: "" };
+const EMPTY = { csm: "", activity: "", reviews: "", customerName: "", customerEmail: "", url: "", context: "", notes: "" };
 
 const inp = (err) => ({
   width: "100%", padding: "10px 12px", borderRadius: 8, fontSize: 14,
@@ -32,6 +33,7 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
         reviews:       String(editTarget.reviews || ""),
         customerName:  editTarget.customerName  || "",
         customerEmail: editTarget.customerEmail || "",
+        url:           editTarget.url           || "",
         context:       editTarget.context       || "",
         notes:         editTarget.notes         || "",
       });
@@ -65,6 +67,7 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
       if (emailInfo.rawEmails.length === 0 || emailInfo.invalidEmails.length > 0 || emailInfo.duplicateCount > 0) return false;
       if (act?.perReview && !emailCountMatches) return false;
     }
+    if (act?.showUrl) { if (!form.url?.trim() || !isValidUrl(form.url)) return false; }
     if (act?.showContext) { if (!form.context?.trim()) return false; }
     return true;
   })();
@@ -78,10 +81,12 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
   if (act?.showCustomer && emailInfo.invalidEmails.length > 0) missing.push("Valid email format");
   if (act?.showCustomer && emailInfo.duplicateCount > 0) missing.push("Remove duplicate emails");
   if (act?.showCustomer && act?.perReview && form.reviews && !emailCountMatches) missing.push(`Exactly ${reviewCount} review email${reviewCount === 1 ? "" : "s"}`);
+  if (act?.showUrl && !form.url?.trim()) missing.push("Approved/published URL");
+  if (act?.showUrl && form.url?.trim() && !isValidUrl(form.url)) missing.push("Valid URL (http/https)");
   if (act?.showContext && !form.context?.trim()) missing.push(act.contextLabel);
 
   async function save() {
-    setTouched({ csm:true,activity:true,reviews:true,customerName:true,customerEmail:true,context:true,notes:true });
+    setTouched({ csm:true,activity:true,reviews:true,customerName:true,customerEmail:true,url:true,context:true,notes:true });
     const { valid, errors: ve } = validateSubmission(form);
     if (!valid) { setErrors(ve); return; }
     setSaving(true);
@@ -171,6 +176,17 @@ export default function SubmissionForm({ onSubmit, editTarget, onCancelEdit, dis
             )}
           </FormField>
         </>)}
+
+        {act?.showUrl && (
+          <FormField label="Approved / Published URL *" error={fe("url")}>
+            <input type="url" value={form.url} onChange={e => set("url", e.target.value)}
+              placeholder="https://… (link to the approved/published review or post)"
+              style={inp(touched.url && (!form.url?.trim() || !isValidUrl(form.url)))} />
+            <div style={{ fontSize:11, color:colors.muted, marginTop:4 }}>
+              Paste the link to the approved or published review / advocacy item.
+            </div>
+          </FormField>
+        )}
 
         {act?.showContext && (
           <FormField label={`${act.contextLabel} *`} error={fe("context")}>
