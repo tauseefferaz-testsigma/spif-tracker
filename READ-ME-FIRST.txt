@@ -1,0 +1,45 @@
+HOW TO USE THIS ZIP
+====================
+
+This zip contains 11 updated files in the SAME folder structure as your
+GitHub repo, so you can drag-and-drop them straight in.
+
+STEP 1 — Unzip this file on your computer.
+You'll see a "src" folder and one file called AppsScript.gs.
+
+STEP 2 — Upload the "src" folder to GitHub
+  1. Go to your repo: github.com/tauseefferaz-testsigma/spif-tracker
+  2. Click "Add file" -> "Upload files" (top right area of the file list)
+  3. Drag the "src" folder from this unzipped download straight into
+     the upload box on that GitHub page.
+  4. GitHub will show you it's replacing the existing files inside
+     src/App.jsx, src/components/..., src/lib/..., src/types/...
+     That's correct - let it overwrite them.
+  5. Scroll down, write a short message like "update points, quarters,
+     CSM list", click "Commit changes".
+  6. Vercel will automatically redeploy your live app in a minute or two.
+
+STEP 3 — Update the Google Apps Script backend (separate from GitHub)
+  1. Open your Google Sheet (the one the tracker writes to).
+  2. Click Extensions -> Apps Script.
+  3. Select all the existing code in the editor and delete it.
+  4. Open AppsScript.gs from this unzipped folder, copy everything,
+     paste it into the Apps Script editor.
+  5. Click the Save icon.
+  6. Click Deploy -> Manage deployments.
+  7. Click the pencil/edit icon next to your existing deployment.
+  8. Under "Version", choose "New version".
+  9. Click Deploy.
+
+  IMPORTANT: Do NOT choose "New deployment" - that creates a new URL
+  and breaks the connection. Always edit the existing deployment and
+  pick "New version".
+
+STEP 4 — Check it worked
+  Open your live app (spif-tracker.vercel.app) and confirm:
+  - A "Q2 2026 / Q3 2026" switch appears near the top
+  - Logging a G2 Review shows 3 pts, Gartner shows 2 pts
+  - The CSM dropdown for new entries shows only your 7 active names
+  - Switching to Q2 2026 still shows your old historical data
+
+That's it. If anything looks wrong, just describe what you're seeing.

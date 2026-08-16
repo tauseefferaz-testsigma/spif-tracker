@@ -1,13 +1,13 @@
 // ════════════════════════════════════════════════════════════════════════
 // Customer Advocacy App v3 — Google Apps Script Backend
 // Schema: Date · CSM Name · Activity · Reviews · Customer Name ·
-//         Customer Email · Context · Notes · Points · Category · URL
+//         Customer Email · Context · Notes · Points · Category · URL · Quarter
 // ════════════════════════════════════════════════════════════════════════
 
 const SHEET_NAME = "Submissions";
 const HEADERS = [
   "Date","CSM Name","Activity","Reviews",
-  "Customer Name","Customer Email","Context","Notes","Points","Category","URL"
+  "Customer Name","Customer Email","Context","Notes","Points","Category","URL","Quarter"
 ];
 
 function jsonOut(obj) {
@@ -28,8 +28,8 @@ function ensureHeaders(sheet) {
     sheet.getRange(1,1,1,HEADERS.length).setFontWeight("bold");
     return;
   }
-  // Existing sheet: fill any missing trailing header (e.g. new URL column)
-  // without disturbing existing header cells.
+  // Existing sheet: fill any missing trailing header (e.g. new URL/Quarter
+  // column) without disturbing existing header cells or any existing data.
   for (let c = 0; c < HEADERS.length; c++) {
     const cell = sheet.getRange(1, c + 1);
     if (String(cell.getValue()).trim() === "") {
@@ -38,18 +38,50 @@ function ensureHeaders(sheet) {
   }
 }
 
-// Accepts both full names and display names
+// ─── QUARTERS ─────────────────────────────────────────────────────────────
+// Mirrors src/types/index.js. New quarters are appended here — existing rows
+// are never rewritten. A blank/legacy Quarter cell (rows written before this
+// column existed) is treated as Q2 2026 so historical data classifies
+// correctly without needing a backfill.
+const QUARTERS = ["Q2 2026", "Q3 2026"];
+const CURRENT_QUARTER = "Q3 2026";
+const LEGACY_QUARTER = "Q2 2026";
+
+function normalizeQuarter(value) {
+  const q = String(value || "").trim();
+  return QUARTERS.indexOf(q) > -1 ? q : LEGACY_QUARTER;
+}
+
+// Resolves legacy raw CSM values (e.g. an old username) to their canonical
+// display name, mirroring the `aliases` on the frontend CSM roster.
+const CSM_ALIAS_MAP = {
+  "sakshi.bagri": "Sakshi Bagri",
+};
+
+function canonicalCsmName(rawName) {
+  const name = String(rawName || "").trim();
+  return CSM_ALIAS_MAP[name] || name;
+}
+
+// Accepts both the current canonical names and older raw/legacy values so
+// edits to historical rows (and the rows themselves) always validate.
 const VALID_CSM_NAMES = [
-  "Subhopriyo Sen",
-  "sakshi.bagri",
+  // Active roster (Q3 2026 onward)
+  "Aarathy Sundaresan",
+  "Arun S",
   "Rama Varma",
+  "Sakshi Bagri",
+  "Tauseef Feraz",
+  "Vanshika Adlakha",
+  "Yadhu Krishnan",
+  // Former CSMs — kept valid so historical Q2 2026 rows can still be edited
+  "Subhopriyo Sen",
   "Mohammed Tamiz Uddin",
   "Aravinda G",
-  "Arun S",
   "Varun Thakur",
   "Shabrish BM",
-  "Tauseef Feraz",
-  "Aarathy Sundaresan",
+  // Legacy raw value for Sakshi Bagri
+  "sakshi.bagri",
 ];
 
 const VALID_ACTIVITIES = [
@@ -84,38 +116,57 @@ const SLACK_NAME_MAP = {
   "Mohammed Tamiz Uddin": "Tamiz",
   "Aravinda G": "Aravinda",
   "Subhopriyo Sen": "Subho",
-  "sakshi.bagri": "Sakshi",
+  "Sakshi Bagri": "Sakshi",
   "Rama Varma": "Ram",
   "Arun S": "Arun",
   "Varun Thakur": "Varun",
   "Shabrish BM": "Shabrish",
   "Tauseef Feraz": "Tauseef",
   "Aarathy Sundaresan": "Aarathy",
+  "Vanshika Adlakha": "Vanshika",
+  "Yadhu Krishnan": "Yadhu",
 };
+// name     = canonical display name.
+// quarters = which quarter(s) this CSM is part of — a former CSM keeps their
+//            Q2 2026 entry here (so historical stats/targets stay correct)
+//            but is left out of Q3 2026, and a brand-new CSM only appears in
+//            Q3 2026 since they weren't part of the Q2 program.
 const CSM_CONFIG = [
-  { name: "Subhopriyo Sen",       targets: { reviews: 5, references: 1, stories: 1 } },
-  { name: "sakshi.bagri",         targets: { reviews: 5, references: 1, stories: 1 } },
-  { name: "Rama Varma",           targets: { reviews: 5, references: 1, stories: 1 } },
-  { name: "Mohammed Tamiz Uddin", targets: { reviews: 7, references: 2, stories: 2 } },
-  { name: "Aravinda G",           targets: { reviews: 7, references: 2, stories: 2 } },
-  { name: "Arun S",               targets: { reviews: 7, references: 2, stories: 2 } },
-  { name: "Varun Thakur",         targets: { reviews: 7, references: 2, stories: 2 } },
-  { name: "Shabrish BM",          targets: { reviews: 7, references: 2, stories: 2 } },
-  { name: "Tauseef Feraz",        targets: null },
-  { name: "Aarathy Sundaresan",   targets: null },
+  { name: "Subhopriyo Sen",       targets: { reviews: 5, references: 1, stories: 1 }, quarters: ["Q2 2026"] },
+  { name: "Rama Varma",           targets: { reviews: 5, references: 1, stories: 1 }, quarters: ["Q2 2026", "Q3 2026"] },
+  { name: "Sakshi Bagri",         targets: { reviews: 5, references: 1, stories: 1 }, quarters: ["Q2 2026", "Q3 2026"] },
+  { name: "Mohammed Tamiz Uddin", targets: { reviews: 7, references: 2, stories: 2 }, quarters: ["Q2 2026"] },
+  { name: "Aravinda G",           targets: { reviews: 7, references: 2, stories: 2 }, quarters: ["Q2 2026"] },
+  { name: "Arun S",               targets: { reviews: 7, references: 2, stories: 2 }, quarters: ["Q2 2026", "Q3 2026"] },
+  { name: "Varun Thakur",         targets: { reviews: 7, references: 2, stories: 2 }, quarters: ["Q2 2026"] },
+  { name: "Shabrish BM",          targets: { reviews: 7, references: 2, stories: 2 }, quarters: ["Q2 2026"] },
+  { name: "Tauseef Feraz",        targets: null, quarters: ["Q2 2026", "Q3 2026"] },
+  { name: "Aarathy Sundaresan",   targets: null, quarters: ["Q2 2026", "Q3 2026"] },
+  { name: "Vanshika Adlakha",     targets: null, quarters: ["Q3 2026"] },
+  { name: "Yadhu Krishnan",       targets: null, quarters: ["Q3 2026"] },
 ];
-const TEAM_TARGETS = CSM_CONFIG.reduce(function (acc, csm) {
-  if (csm.targets) {
-    acc.reviews += csm.targets.reviews;
-    acc.references += csm.targets.references;
-    acc.stories += csm.targets.stories;
-  }
-  return acc;
-}, { reviews: 0, references: 0, stories: 0 });
+
+function csmConfigForQuarter(quarter) {
+  return CSM_CONFIG.filter(function (csm) { return csm.quarters.indexOf(quarter) > -1; });
+}
+
+function getTeamTargets(quarter) {
+  return csmConfigForQuarter(quarter).reduce(function (acc, csm) {
+    if (csm.targets) {
+      acc.reviews += csm.targets.reviews;
+      acc.references += csm.targets.references;
+      acc.stories += csm.targets.stories;
+    }
+    return acc;
+  }, { reviews: 0, references: 0, stories: 0 });
+}
+// Backwards-compatible export (Q2 2026 team targets — unchanged from before).
+const TEAM_TARGETS = getTeamTargets("Q2 2026");
 
 function validatePayload(p) {
   if (!p.csm || !VALID_CSM_NAMES.includes(p.csm)) return "Invalid CSM name.";
   if (!p.activity || !VALID_ACTIVITIES.includes(p.activity)) return "Invalid activity.";
+  if (p.quarter && QUARTERS.indexOf(String(p.quarter).trim()) === -1) return "Invalid quarter.";
   const pts = Number(p.points);
   if (!Number.isFinite(pts) || pts < 0) return "Invalid points value.";
   if (CUSTOMER_ACTIVITIES.includes(p.activity)) {
@@ -167,7 +218,7 @@ function rowFromPayload(p) {
   const normalizedEmails = getEmailValidationDetails(p.customerEmail).uniqueEmails.join("\n");
   return [
     p.date || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd"),
-    String(p.csm || "").trim(),
+    canonicalCsmName(p.csm || ""),
     String(p.activity || "").trim(),
     (p.reviews !== "" && p.reviews !== null && p.reviews !== undefined) ? Number(p.reviews) : "",
     String(p.customerName  || "").trim(),
@@ -177,6 +228,9 @@ function rowFromPayload(p) {
     Number(p.points),
     String(p.category || "").trim(),
     String(p.url || "").trim(),
+    // New creates default to the current quarter; edits pass their existing
+    // (possibly Q2 2026) quarter through unchanged.
+    normalizeQuarter(p.quarter || CURRENT_QUARTER),
   ];
 }
 
@@ -257,7 +311,7 @@ function getSubmissionsFromSheet() {
     submissions.push({
       rowIndex: i + 1,
       date: String(dateVal || "").trim(),
-      csm: String(row[1] || "").trim(),
+      csm: canonicalCsmName(row[1]),
       activity: String(row[2] || "").trim(),
       reviews: (row[3] !== "" && row[3] !== null) ? Number(row[3]) : "",
       customerName: String(row[4] || "").trim(),
@@ -267,16 +321,25 @@ function getSubmissionsFromSheet() {
       points: Number(row[8]) || 0,
       category: String(row[9] || "").trim(),
       url: String(row[10] || "").trim(),
+      // Rows written before this column existed have a blank cell here —
+      // normalizeQuarter classifies those as Q2 2026 without touching the row.
+      quarter: normalizeQuarter(row[11]),
     });
   }
 
   return submissions;
 }
 
-function buildCsmStatsFromSubmissions(submissions) {
+function buildCsmStatsFromSubmissions(submissions, quarter) {
+  const q = quarter || CURRENT_QUARTER;
+  // Defensively scope to the requested quarter here too, mirroring the
+  // frontend's buildCsmStats — never trust the caller to have pre-filtered.
+  const scoped = submissions.filter(function (row) {
+    return normalizeQuarter(row.quarter) === q;
+  });
   const map = {};
 
-  CSM_CONFIG.forEach(function (csm) {
+  csmConfigForQuarter(q).forEach(function (csm) {
     map[csm.name] = {
       name: csm.name,
       targets: csm.targets,
@@ -288,8 +351,8 @@ function buildCsmStatsFromSubmissions(submissions) {
     };
   });
 
-  submissions.forEach(function (row) {
-    const current = map[row.csm];
+  scoped.forEach(function (row) {
+    const current = map[canonicalCsmName(row.csm)];
     if (!current) return;
     current.pts += Number(row.points) || 0;
     current.activities += 1;
@@ -306,13 +369,18 @@ function buildCsmStatsFromSubmissions(submissions) {
 }
 
 function buildSlackSnapshotMessage() {
-  const submissions = getSubmissionsFromSheet();
-  const lb = buildCsmStatsFromSubmissions(submissions);
+  const allSubmissions = getSubmissionsFromSheet();
+  // The scheduled Slack snapshot reports on the active/current quarter only —
+  // Q2 2026 history doesn't carry into it.
+  const submissions = allSubmissions.filter(function (row) {
+    return normalizeQuarter(row.quarter) === CURRENT_QUARTER;
+  });
+  const lb = buildCsmStatsFromSubmissions(submissions, CURRENT_QUARTER);
   const summary = {
     totalReviews: lb.reduce(function (sum, csm) { return sum + csm.reviews; }, 0),
     totalRefs: lb.reduce(function (sum, csm) { return sum + csm.references; }, 0),
     totalStories: lb.reduce(function (sum, csm) { return sum + csm.stories; }, 0),
-    targets: TEAM_TARGETS,
+    targets: getTeamTargets(CURRENT_QUARTER),
   };
   const week = getCurrentWeekNumber();
   const dateStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM d");
@@ -344,7 +412,7 @@ function buildSlackSnapshotMessage() {
     behind.length ? "🔴 Behind   — " + behind.join(", ") : null,
   ].filter(Boolean).join("\n") || "No pace data yet.";
 
-  return "📊 Customer Advocacy App — Snapshot | " + dateStr + " · Week " + week + " of " + PROGRAM_WEEKS + "\n\n" +
+  return "📊 Customer Advocacy App — Snapshot | " + CURRENT_QUARTER + " · " + dateStr + " · Week " + week + " of " + PROGRAM_WEEKS + "\n\n" +
     "📊 Team Progress\n" +
     "Reviews      " + progressBar(summary.totalReviews, summary.targets.reviews) + "  " + summary.totalReviews + " / " + summary.targets.reviews + "  (" + reviewPct + "%)\n" +
     "References   " + progressBar(summary.totalRefs, summary.targets.references) + "  " + summary.totalRefs + " / " + summary.targets.references + "  (" + refPct + "%)\n" +
